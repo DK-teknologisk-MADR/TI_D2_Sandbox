@@ -1,4 +1,9 @@
-class TI_Predictor_Base():
+from detectron2.engine import DefaultPredictor
+from detectron2.config import get_cfg
+import re
+import os
+
+class ModelTester():
     def __init__(self,cfg_fp,chk_fp=None,predictor_cls = DefaultPredictor):
         '''
         Inputs:
@@ -15,9 +20,10 @@ class TI_Predictor_Base():
         self.cfg.merge_from_file(cfg_fp)
         if chk_fp is None:
 
-            pattern = '.+\.pkl$'
+            pattern = '.+\.pkl$ | .+\.pth$'
             regex_pkl = re.compile(pattern,re.MULTILINE)
             result = regex_pkl.search("\n".join(os.listdir()))
+            print(result)
             if result:
                 chk_fp = f"./{result.group()}"
             else:
@@ -25,10 +31,16 @@ class TI_Predictor_Base():
         self.cfg.MODEL.WEIGHTS = chk_fp
         self.predictor = predictor_cls(self.cfg)
 
+    def post_process(self,pred_outputs):
+        '''
+        should take whatever model spits out (D2 "instances" object with tensors) and return kpts as numpy array.
+        '''
+        raise NotImplementedError
 
-    def __call__(self, inputs):
+    def __call__(self,inputs):
+        return self.predictor(inputs)
+
+    def get_key_points(self,inputs):
         pred_outputs = self.predictor(inputs)
         return self.post_process(pred_outputs)
 
-    def post_process(self,pred_outputs):
-        raise NotImplementedError

@@ -77,3 +77,8 @@ for itr in range(1):
       optimizer.zero_grad()
       loss.backward()
       optimizer.step()
+
+      v = Visualizer(input_img[:, :, ::-1], MetadataCatalog.get(cfg.DATASETS.TRAIN[0]), scale=1.2)
+      out = v.draw_instance_predictions(pred_output.to('cpu'))
+
+      cv2_imshow(out.get_image()[:, :, ::-1])
