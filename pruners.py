@@ -34,6 +34,7 @@ class SHA(pruner_base):
     '''
     def __init__(self, max_res, factor=3, topK=1):
         self.max_res = max_res
+        self.topK = topK
         self.factor = factor
         self.rungs_to_skip = ceil(1 + log(topK, self.factor))
         self.rungs = floor(self.compute_rungs())
@@ -82,3 +83,9 @@ class SHA(pruner_base):
 
     def get_best_models(self):
         return self.rung_results
+
+    def print_status(self):
+        print("TOP K IS")
+        to_print = self.rung_results.copy()
+        to_print.sort(reverse=True, key=lambda tup: tup[1])
+        print(to_print[:self.topK])

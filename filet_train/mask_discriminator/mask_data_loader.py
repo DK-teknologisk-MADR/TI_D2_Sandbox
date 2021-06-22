@@ -7,10 +7,10 @@ from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 from data_utils import get_file_pairs
 import json
 import os
-
+import shutil
 from data_utils import get_file_pairs
-import matplotlib
-matplotlib.use('TkAgg')
+#import matplotlib
+#matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 def get_file_pairs(data_dir,split):
     '''
@@ -43,7 +43,9 @@ def get_file_pairs(data_dir,split):
 
 
 
-def rm_dead_data_and_get_ious(data_dir,split,file_pairs):
+def rm_dead_data_and_get_ious(data_dir,split,file_pairs = None):
+    if file_pairs is None:
+        file_pairs = get_file_pairs(data_dir,split)
     data = file_pairs.copy()
     i = 0
     iou_dict = {}
@@ -74,24 +76,38 @@ def rm_dead_data_and_get_ious(data_dir,split,file_pairs):
                 iou_dict[front] = iou
     print("removed ", i , "dead files")
     return data, iou_dict
+#tup = len(files[0])*.8,len(files[0])*.1,len(files[0])*.1
+#ls = [int(x) for x in tup]
+#files,ious = rm_dead_data_and_get_ious("/pers_files/mask_data/","")
+#splits = np.repeat(["train","val","test"],ls)
 
+#for fr_file_pair,split in zip(files.items(),splits):
+#    front,files = fr_file_pair
+#    for file in files:
+#        shutil.copyfile( os.path.join("/pers_files/mask_data/", "", file ), os.path.join("/pers_files/mask_data/", split, file ) )
 
 class Filet_Seg_Dataset(Dataset):
-    def __init__(self,file_dict,iou_dict,data_dir,split,trs_x = [], trs_y = [] ):
+    '''
+    #transforms bgr to rgb
+    #converts HWC to CHW
+    #converts 0-255 to 0.1
+    '''
+    def __init__(self,file_dict,iou_dict,data_dir,split,trs_x = [], trs_y_bef = [],trs_y_aft = [] ):
         self.fronts = []
         self.ious = []
         self.data_dir = data_dir
         self.split = split
+        self.trs_y_aft = trs_y_aft
         self.data_dict = file_dict
         for front in file_dict.keys():
             self.fronts.append(front)
             self.ious.append(iou_dict[front])
+        self.ious = np.array(self.ious)
         self.trs_x = trs_x
-        self.trs_y = trs_y
+        for tr_y_bef in trs_y_bef:
+            self.ious = tr_y_bef(self.ious)
         if self.trs_x:
             self.trs_x = Compose(self.trs_x)
-        if self.trs_y:
-            self.trs_y = Compose(self.trs_y)
 
     def __len__(self):
         return len(self.data_dict)
@@ -117,22 +133,16 @@ class Filet_Seg_Dataset(Dataset):
 #        with open(os.path.join(data_dir, split, json_file)) as fp:
 #            json_dict = json.load(fp)
         iou = self.ious[item]
-        pic = torch.tensor(pic,device='cpu',dtype=torch.float).permute(2,0,1).contiguous()
+        pic = torch.tensor(pic,device='cpu',dtype=torch.float,requires_grad=False).permute(2,0,1).contiguous()
         if not self.trs_x == []:
             pic = self.trs_x(pic)
-        if not self.trs_y == []:
-            iou = self.trs_y(iou)
+        for self.tr_y in self.trs_y_aft:
+            iou = self.tr_y(iou)
         return pic,iou
 
-def get_loader(dataset,bs,num_workers):
-    ious = dataset.ious
-    st_inds = np.argsort(ious)
-    qs = np.array([0.86, 0.935])
-    intervals = np.searchsorted(qs, ious)
-    nrs = np.bincount(intervals)
-    weights_pre = nrs[0] / nrs
-    weights_pre = weights_pre * (1 / min(weights_pre))
-    weights = weights_pre[intervals]
-    sampler = WeightedRandomSampler(weights=weights, num_samples=len(dataset), replacement=True)
-    return DataLoader(dataset, batch_size=bs, sampler=sampler, num_workers=6, pin_memory=True)
+def get_loader(dataset,bs,wts =None):
+    if wts is None:
+        wts = np.ones(len(dataset))
+    sampler = WeightedRandomSampler(weights=wts, num_samples=len(dataset), replacement=True)
+    return DataLoader(dataset, batch_size=bs, sampler=sampler, num_workers=0, pin_memory=True)
 
