@@ -31,10 +31,31 @@ class IOU_Discriminator(nn.Module):
         x = self.fcout(x)
         return x
 
+class IOU_Discriminator_Only_Mask(nn.Module):
+    def __init__(self):
+        super(IOU_Discriminator_Only_Mask, self).__init__()
+        self.model_wide_res = wide_resnet50_2(False)
+        self.model_wide_res.conv1 = nn.Conv2d(1, 64, kernel_size=(7,7), stride=(2,2), padding=(3,3), bias=False)
+        self.model_wide_res.fc = nn.Linear(2048,400)
+        self.dropout1 = nn.Dropout(0.25)
+        self.fc2 = nn.Linear(400,400)
+        self.dropout2 = nn.Dropout(0.25)
+        self.fcout = nn.Linear(400,1)
+        self.model_wide_res.to(md.compute_device)
+
+    def forward(self,x):
+        x = self.model_wide_res.forward(x)
+        x = self.dropout1(x)
+        x = self.fc2(x)
+        x = self.dropout2(x)
+        x = self.fcout(x)
+        return x
+
+
 
 data_dir = '/pers_files/mask_data'
 train_split = "train"
-model_path = '/pers_files/mask_models'
+model_path = '/pers_files/mask_models_Only_Mask'
 val_split = "val"
 
 file_pairs_train = get_file_pairs(data_dir,train_split)
@@ -53,8 +74,8 @@ def normalize_ious(arr):
 
 #-----------------------------
 
-dt = Filet_Seg_Dataset(data,iou_dict,data_dir,train_split,[Normalize( mean=[0.485, 0.456, 0.406,0.425], std=[0.229, 0.224, 0.225,0.226])],trs_y_bef=[normalize_ious])
-dt_val = Filet_Seg_Dataset(data_val,iou_dict_val,data_dir,val_split,[Normalize( mean=[0.485, 0.456, 0.406,0.425], std=[0.229, 0.224, 0.225,0.226])],trs_y_bef=[normalize_ious])
+dt = Filet_Seg_Dataset(data,iou_dict,data_dir,train_split,trs_y_bef=[normalize_ious],mask_only=True)
+dt_val = Filet_Seg_Dataset(data_val,iou_dict_val,data_dir,val_split,trs_y_bef=[normalize_ious],mask_only=True)
 ious = dt_val.ious #CHANGE TO DT
 st_inds = np.argsort(ious)
 qs = np.array([0.80, 0.94])
@@ -73,6 +94,6 @@ base_params = {
     }
 }
 
-hyper = md.Hyperopt(model_path,max_iter = 200000,iter_chunk_size = 100,dt= dt,model_cls= IOU_Discriminator,optimizer_cls= optim.SGD,scheduler_cls= ReduceLROnPlateau,loss_cls= nn.BCEWithLogitsLoss,output_dir=model_path, bs = 4,base_params= base_params,dt_val = dt_val,eval_period = 250,dt_wts = weights)
+hyper = md.Hyperopt(model_path,max_iter = 350000,iter_chunk_size = 100,dt= dt,model_cls= IOU_Discriminator_Only_Mask,optimizer_cls= optim.SGD,scheduler_cls= ReduceLROnPlateau,loss_cls= nn.BCEWithLogitsLoss,output_dir=model_path, bs = 4,base_params= base_params,dt_val = dt_val,eval_period = 250,dt_wts = weights)
 
 hyper.hyperopt()

@@ -92,11 +92,12 @@ class Filet_Seg_Dataset(Dataset):
     #converts HWC to CHW
     #converts 0-255 to 0.1
     '''
-    def __init__(self,file_dict,iou_dict,data_dir,split,trs_x = [], trs_y_bef = [],trs_y_aft = [] ):
+    def __init__(self,file_dict,iou_dict,data_dir,split,trs_x = [], trs_y_bef = [],trs_y_aft = [],mask_only = False ):
         self.fronts = []
         self.ious = []
         self.data_dir = data_dir
         self.split = split
+        self.mask_only = mask_only
         self.trs_y_aft = trs_y_aft
         self.data_dict = file_dict
         for front in file_dict.keys():
@@ -124,20 +125,33 @@ class Filet_Seg_Dataset(Dataset):
                 json_file = os.path.join(self.data_dir,self.split,file)
             else:
                 pass
+
         pic_load = cv2.imread(mask_file, cv2.IMREAD_GRAYSCALE)
         pic_load = np.where(pic_load>255/2,1,0)
-        dim = pic_load.shape[0]
-        pic = np.zeros((dim,dim,4),dtype='uint8')
-        pic[:,:,3] = pic_load
-        pic[:,:,:3] = cv2.cvtColor(cv2.imread(jpg_file),cv2.COLOR_BGR2RGB) / 255.0
-#        with open(os.path.join(data_dir, split, json_file)) as fp:
-#            json_dict = json.load(fp)
-        iou = self.ious[item]
-        pic = torch.tensor(pic,device='cpu',dtype=torch.float,requires_grad=False).permute(2,0,1).contiguous()
-        if not self.trs_x == []:
-            pic = self.trs_x(pic)
-        for self.tr_y in self.trs_y_aft:
-            iou = self.tr_y(iou)
+        if self.mask_only:
+            dim = pic_load.shape[0]
+            pic = np.zeros((dim, dim, 1), dtype='uint8')
+            #        with open(os.path.join(data_dir, split, json_file)) as fp:
+            #            json_dict = json.load(fp)
+            iou = self.ious[item]
+            pic = torch.tensor(pic, device='cpu', dtype=torch.float, requires_grad=False).permute(2, 0, 1).contiguous()
+            if not self.trs_x == []:
+                pic = self.trs_x(pic)
+            for self.tr_y in self.trs_y_aft:
+                iou = self.tr_y(iou)
+        else:
+            dim = pic_load.shape[0]
+            pic = np.zeros((dim, dim, 4), dtype='uint8')
+            pic[:, :, 3] = pic_load
+            pic[:, :, :3] = cv2.cvtColor(cv2.imread(jpg_file), cv2.COLOR_BGR2RGB) / 255.0
+            #        with open(os.path.join(data_dir, split, json_file)) as fp:
+            #            json_dict = json.load(fp)
+            iou = self.ious[item]
+            pic = torch.tensor(pic, device='cpu', dtype=torch.float, requires_grad=False).permute(2, 0, 1).contiguous()
+            if not self.trs_x == []:
+                pic = self.trs_x(pic)
+            for self.tr_y in self.trs_y_aft:
+                iou = self.tr_y(iou)
         return pic,iou
 
 def get_loader(dataset,bs,wts =None):

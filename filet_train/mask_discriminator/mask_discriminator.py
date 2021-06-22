@@ -262,7 +262,7 @@ class Hyperopt():
             print("result of this sprint was",val_loss )
             print(".........results are................")
             self.pruner.print_status()
-
+        self.result_df.to_csv(os.path.join(self.output_dir,"result.csv"))
 
     def resume_or_initiate_train(self,model_dir=None, max_iter=1, hyper={}, bs=4):
         optimizer_params = self.base_params['optimizer'] if 'optimizer' in self.base_params else {}
@@ -295,8 +295,8 @@ class Hyperopt():
 
         '''
         hyper = {
-            "lr": uniform(0.001, 0.1),
+            "lr": uniform(0.0005, 0.1),
             "momentum": uniform(0.1, 0.6),
-            "gamma": uniform(0.1, 0.8),
+            "gamma": uniform(0.1, 0.9),
         }
         return hyper
