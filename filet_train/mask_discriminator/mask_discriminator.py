@@ -11,6 +11,7 @@ import tkinter
 import cv2
 import matplotlib.pyplot as plt
 import json
+import pandas as pd
 import os
 import io
 from filet_train.mask_discriminator.mask_data_loader import get_file_pairs,rm_dead_data_and_get_ious , Filet_Seg_Dataset, get_loader
@@ -173,6 +174,7 @@ class Trainer():
         self.val_loss_cur = val_loss.numpy()
         if self.best_val_loss > self.val_loss_cur:
             self.best_val_loss = self.val_loss_cur
+            self.save_model(file_name=f"best_model.pth", to_save={'val_loss': self.best_val_loss})
         self.save_model(file_name=f"checkpoint.pth",to_save={'val_loss' : self.best_val_loss})
 
     def before_step(self):
@@ -209,7 +211,7 @@ class Trainer_Save_Best(Trainer):
         self.previous_best_loss = float('inf')
 
     def after_step(self):
-        if self.itr % self.eval_period == 0 or self.itr >= self.max_iter:
+        if self.itr % self.eval_period == 0:
             print("checking if best<pervious",self.best_val_loss<self.previous_best_loss)
             if self.best_val_loss<self.previous_best_loss:
                 self.save_model(file_name="best_model.pth",to_save={'val_loss' : self.best_val_loss})
@@ -234,6 +236,7 @@ class Hyperopt():
         self.model_cls = model_cls
         self.pruner = SHA(self.max_iter / self.iter_chunk_size, factor=3, topK=3)
         self.val_nr = val_nr
+        self.result_df = None
     def hyperopt(self):
         bs = 4
         # create paths
@@ -245,12 +248,16 @@ class Hyperopt():
             paths.append(path)
             hyper = self.suggest_hyper_dict()
             hyper_vals.append(hyper)
+        self.result_df = pd.DataFrame(hyper_vals)
+        self.result_df['val_score'] = np.nan
+#        self.result_df['pruned'] = False TODO::Implement pruned into df
         trial_id_cur = 0
         pruned = []
         done = False
         while not done:
             val_loss = self.resume_or_initiate_train(model_dir= paths[trial_id_cur],max_iter= self.iter_chunk_size * self.pruner.get_cur_res(), hyper = hyper_vals[trial_id_cur], bs=4)
             trial_id_cur, pruned, done = self.pruner.report_and_get_next_trial(-val_loss)
+            self.result_df.loc[trial_id_cur,'val_score'] = -val_loss
             print("trial sprint completed for ID",trial_id_cur,". rung is ",self.pruner.rung_cur)
             print("result of this sprint was",val_loss )
             print(".........results are................")
