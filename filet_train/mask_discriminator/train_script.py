@@ -1,7 +1,7 @@
-import mask_discriminator as md
+import filet_train.mask_discriminator.mask_discriminator as md
 import torch.nn as nn
 from torchvision.models import wide_resnet50_2
-from mask_data_loader import get_loader , rm_dead_data_and_get_ious , get_file_pairs, Filet_Seg_Dataset
+from filet_train.mask_discriminator.mask_data_loader import get_loader , rm_dead_data_and_get_ious , get_file_pairs, Filet_Seg_Dataset
 from torchvision.transforms import Normalize
 import numpy as np
 import torch.optim as optim
@@ -94,6 +94,6 @@ base_params = {
     }
 }
 
-hyper = md.Hyperopt(model_path,max_iter = 350000,iter_chunk_size = 100,dt= dt,model_cls= IOU_Discriminator_Only_Mask,optimizer_cls= optim.SGD,scheduler_cls= ReduceLROnPlateau,loss_cls= nn.BCEWithLogitsLoss,output_dir=model_path, bs = 4,base_params= base_params,dt_val = dt_val,eval_period = 250,dt_wts = weights)
+#hyper = md.Hyperopt(model_path,max_iter = 350000,iter_chunk_size = 100,dt= dt,model_cls= IOU_Discriminator_Only_Mask,optimizer_cls= optim.SGD,scheduler_cls= ReduceLROnPlateau,loss_cls= nn.BCEWithLogitsLoss,output_dir=model_path, bs = 4,base_params= base_params,dt_val = dt_val,eval_period = 250,dt_wts = weights)
 
-hyper.hyperopt()
+#hyper.hyperopt()

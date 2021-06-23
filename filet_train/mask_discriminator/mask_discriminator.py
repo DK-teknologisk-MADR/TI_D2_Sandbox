@@ -62,7 +62,7 @@ class StopByProgressHook():
 #net.load(torch.load("apath/to/load"))
 
 class Trainer():
-    def __init__(self,dt,net, optimizer, scheduler,loss_fun, max_iter, output_dir,eval_period=250, print_period=50,bs=4,dt_val = None,dt_wts = None,loss_fun_val = None , val_nr = None,add_max_iter_to_loaded = False):
+    def __init__(self,dt,net, optimizer, scheduler,loss_fun, max_iter, output_dir,eval_period=250, print_period=50,bs=4,dt_val = None,dt_wts = None,fun_val = None , val_nr = None,add_max_iter_to_loaded = False):
         self.net = net
         self.optimizer = optimizer
         self.scheduler = scheduler
@@ -76,7 +76,7 @@ class Trainer():
         self.dt = dt
         self.dt_val = dt_val
         self.add_max_iter_to_loaded = add_max_iter_to_loaded
-        self.loss_fun_val = loss_fun_val
+        self.fun_val = fun_val
         self.val_nr = val_nr
         self.dt_wts = dt_wts
         self.best_val_loss = float('inf')
@@ -183,7 +183,9 @@ class Trainer():
     def after_step(self):
         pass
 
-    def validate(self,val_nr=None, bs = 4):
+    def validate(self,val_nr=None, bs = 4,fun = None):
+        if fun is None:
+            fun = self.fun_val
         self.net.eval()
         if self.dt_val is None:
             raise AttributeError("ERROR, did not supply dt_val but calling validation")
@@ -199,10 +201,12 @@ class Trainer():
                 targets = targets.to(compute_device)
                 out = self.net(batch).flatten()
                 targets = targets.float()
-                total_loss += self.loss_fun_val(out, targets)
+                total_loss += fun(out, targets)
                 if instances_nr + 1 >= val_nr:
                     break
         return total_loss.to('cpu')/instances_nr
+
+
 
 
 class Trainer_Save_Best(Trainer):
@@ -274,9 +278,9 @@ class Hyperopt():
         optimizer = self.optimizer_cls(net.parameters(), lr=hyper['lr'], momentum=hyper['momentum'],**optimizer_params)
         scheduler = self.scheduler_cls(optimizer,factor=hyper['gamma'],**scheduler_params)
         loss_fun = self.loss_cls(**loss_params)
-        loss_fun_val = self.loss_cls(reduction = 'sum')
+        fun_val = self.loss_cls(reduction = 'sum')
         print("initializing training with hyper-parameters",hyper)
-        trainer = Trainer_Save_Best(dt = self.dt,dt_wts = self.dt_wts,net = net,optimizer=optimizer,max_iter=max_iter,scheduler=scheduler,loss_fun = loss_fun,output_dir = model_dir,eval_period = self.eval_period,print_period=50,bs=4,dt_val=self.dt_val, loss_fun_val=loss_fun_val,val_nr = self.val_nr,add_max_iter_to_loaded=True)
+        trainer = Trainer_Save_Best(dt = self.dt,dt_wts = self.dt_wts,net = net,optimizer=optimizer,max_iter=max_iter,scheduler=scheduler,loss_fun = loss_fun,output_dir = model_dir,eval_period = self.eval_period,print_period=50,bs=4,dt_val=self.dt_val, fun_val=fun_val,val_nr = self.val_nr,add_max_iter_to_loaded=True)
         if model_dir is not None:
             try:
                 trainer.load(os.path.join(model_dir,"checkpoint.pth"))
