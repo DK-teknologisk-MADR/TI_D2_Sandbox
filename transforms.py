@@ -10,3 +10,4 @@ class CropAndResize(T.Augmentation):
         scaler = T.RandomExtent(self.scale_range,self.shift_range)(aug_input)
         resizer = T.Resize((oldx,oldy))(aug_input)
         return T.TransformList([scaler,resizer])
+

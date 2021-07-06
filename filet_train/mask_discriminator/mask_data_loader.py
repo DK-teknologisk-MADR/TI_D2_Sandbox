@@ -64,27 +64,19 @@ def rm_dead_data_and_get_ious(data_dir,split,file_pairs = None):
                     json_file = os.path.join(data_dir,split,file)
                 else:
                     print("warning, cant recognize file",file)
-            mask = cv2.imread(mask_file)
-            filet = cv2.imread(jpg_file)
+        #    mask = cv2.imread(mask_file)
+         #   filet = cv2.imread(jpg_file)
             with open(os.path.join(data_dir,split,json_file)) as fp:
                 json_dict = json.load(fp)
                 iou = json_dict['shapes'][0]['label']
-            if np.sum(mask) < 100 or np.sum(filet) < 100:
-                del data[front]
+         #   if np.sum(mask) < 100 or np.sum(filet) < 100:
+          #      pass
+           #     del data[front]
                 i += 1
-            else:
-                iou_dict[front] = iou
+           # else:
+            iou_dict[front] = iou
     print("removed ", i , "dead files")
     return data, iou_dict
-#tup = len(files[0])*.8,len(files[0])*.1,len(files[0])*.1
-#ls = [int(x) for x in tup]
-#files,ious = rm_dead_data_and_get_ious("/pers_files/mask_data/","")
-#splits = np.repeat(["train","val","test"],ls)
-
-#for fr_file_pair,split in zip(files.items(),splits):
-#    front,files = fr_file_pair
-#    for file in files:
-#        shutil.copyfile( os.path.join("/pers_files/mask_data/", "", file ), os.path.join("/pers_files/mask_data/", split, file ) )
 
 class Filet_Seg_Dataset(Dataset):
     '''
@@ -94,7 +86,7 @@ class Filet_Seg_Dataset(Dataset):
     '''
     def __init__(self,file_dict,iou_dict,data_dir,split,trs_x = [], trs_y_bef = [],trs_y_aft = [],mask_only = False ):
         self.fronts = []
-        self.ious = []
+        self.ious_pre_tr = []
         self.data_dir = data_dir
         self.split = split
         self.mask_only = mask_only
@@ -102,8 +94,9 @@ class Filet_Seg_Dataset(Dataset):
         self.data_dict = file_dict
         for front in file_dict.keys():
             self.fronts.append(front)
-            self.ious.append(iou_dict[front])
-        self.ious = np.array(self.ious)
+            self.ious_pre_tr.append(iou_dict[front])
+        self.ious = np.array(self.ious_pre_tr)
+        self.ious_pre_tr = np.array(self.ious_pre_tr)
         self.trs_x = trs_x
         for tr_y_bef in trs_y_bef:
             self.ious = tr_y_bef(self.ious)
@@ -147,7 +140,7 @@ class Filet_Seg_Dataset(Dataset):
             #        with open(os.path.join(data_dir, split, json_file)) as fp:
             #            json_dict = json.load(fp)
             iou = self.ious[item]
-            pic = torch.tensor(pic, device='cpu', dtype=torch.float, requires_grad=False).permute(2, 0, 1).contiguous()
+            pic = torch.tensor(pic, device='cpu', dtype=torch.float, requires_grad=False).permute(2, 0, 1)
             if not self.trs_x == []:
                 pic = self.trs_x(pic)
             for self.tr_y in self.trs_y_aft:

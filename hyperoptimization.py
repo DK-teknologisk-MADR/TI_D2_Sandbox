@@ -1,11 +1,9 @@
 import copy
 import os
-from typing import Mapping
-
+import shutil
 from detectron2.data import build_detection_test_loader
 from trainers import TI_Trainer
 from detectron2.evaluation import inference_on_dataset
-import yaml
 import hooks
 from hooks import StopAtIterHook
 from pruners import SHA
@@ -13,8 +11,7 @@ import pandas as pd
 # install dependencies:
 import torch
 import datetime
-assert torch.cuda.is_available(), "torch cant find cuda. Is there GPU on the machine?"
-# opencv is pre-installed on colab
+#assert torch.cuda.is_available(), "torch cant find cuda. Is there GPU on the machine?"
 from detectron2.utils.logger import setup_logger
 
 setup_logger()
@@ -29,7 +26,7 @@ class D2_hyperopt_Base():
       evaluator: Use COCOEvaluator if in doubt
       https://detectron2.readthedocs.io/en/latest/modules/evaluation.html#detectron2.evaluation.COCOEvaluator
       step_chunk_size: nr of iters corresponding to 1 ressource granted by pruner
-      max_iter : maximum TOTAL number of iters across all tried models. WARNING: Persistent memory needed is proportional to this.
+      max_iter : maximum TOTAL number of iters across all tried models. WARNING: large max_iter requires large amount of free space.
       pruner_cls : class(not object) of a pruner. see pruner class
     output: Pandas df of all trials, whether they have been pruned, and their last reported score. This df is also written as csv to output_dir
     '''
@@ -84,9 +81,24 @@ class D2_hyperopt_Base():
 
 
 
-    # TODO:complete with all types
     def suggest_values(self):
+        '''
+        generates (possibly random) values for cfg keys.
+        output should be list( ( list(str), value) )
+        where the list of strings gives the keys identifying the value to be set in the config dict.
+        '''
         raise NotImplementedError
+
+    def prune_handling(self,pruned_ids):
+        '''
+            What to do with the models that has been pruned.
+        '''
+        pass
+#        for trial_id in pruned_ids:
+#            shutil.rmtree(self.get_trial_output_dir(trial_id))
+
+
+
 
     def get_model_name(self,trial_id):
         return f'{self.model_name}_{trial_id}'
@@ -112,7 +124,6 @@ class D2_hyperopt_Base():
       cfg_sg_pred.MODEL.WEIGHTS = os.path.join(cfg_sg.OUTPUT_DIR, "model_final.pth")
       val_loader = build_detection_test_loader(cfg_sg_pred, self.data_val_name) #ud af loop?
       infe = inference_on_dataset(trainer.model, val_loader, self.evaluator)
-      print(infe.keys())
       val_to_report = infe[self.task]['AP']
       return val_to_report
 
@@ -139,10 +150,10 @@ class D2_hyperopt_Base():
         try:
             trainer.train()
         except hooks.StopFakeExc:
-            print("Stopped per request of hook")
+            print("Hyperopt::Stopped per request of hook")
             val_to_report = self.validate(cfg_sg,trainer)
         except (FloatingPointError, ValueError):
-            print("Bad_model")
+            print("Hyperopt::Bad_model")
             val_to_report = 0
         else:
             val_to_report = self.validate(cfg_sg,trainer)
@@ -165,10 +176,9 @@ class D2_hyperopt_Base():
         id_cur = 0
         done = False
         while not done:
-            print("NOW RUNNING ID,----------------------------------------------------------------------",id_cur)
+            print("HyperOpt::NOW RUNNING ID,----------------------------------------------------------------------",id_cur)
             print(self.df_hp.loc[id_cur,:])
             cfg = self.suggested_cfgs[id_cur]
-            print(cfg.MODEL.ANCHOR_GENERATOR.ASPECT_RATIOS)
             val_to_report = self.sprint(id_cur,self.pruner.get_cur_res(),cfg)
             self.df_hp.loc[id_cur,'score'] = val_to_report
             id_cur, pruned, done = self.pruner.report_and_get_next_trial(val_to_report)
@@ -178,9 +188,6 @@ class D2_hyperopt_Base():
 
         self.df_hp.to_csv(f'{self.output_dir}/hyperopt_results-{self.time_info_str}.csv')
         return self.df_hp
-
-    def prune_handling(self,pruned_ids):
-        pass
 
     def get_result(self):
         return self.pruner.get_best_models()

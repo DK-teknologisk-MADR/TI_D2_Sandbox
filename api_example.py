@@ -23,7 +23,8 @@ print(data_names)
 
 def initialize_base_cfg(model_name,cfg=None):
     '''
-    setup base configuration of model SEE MORE AT https://detectron2.readthedocs.io/en/latest/modules/config.html
+    name of function not important. Sets up the base config for model you want to train.
+    SEE MORE AT https://detectron2.readthedocs.io/en/latest/modules/config.html
     '''
     if cfg is None:
         cfg = get_cfg()
@@ -36,17 +37,18 @@ def initialize_base_cfg(model_name,cfg=None):
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(f'{model_name}.yaml')
     cfg.SOLVER.IMS_PER_BATCH = 3 #maybe more?
     cfg.OUTPUT_DIR = f'{output_dir}/{model_name}_output'
-    os.makedirs(f'{output_dir}/{model_name}_output',exist_ok=True)
     cfg.SOLVER.BASE_LR = 0.00025
     cfg.SOLVER.MAX_ITER = 500
     cfg.SOLVER.STEPS = [] #cfg.SOLVER.STEPS = [2000,4000] would decay LR by cfg.SOLVER.GAMMA at steps 2000,4000
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 64  #(default: 512)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
+    #might as well make sure output_dir exists
+    os.makedirs(f'{output_dir}/{model_name}_output',exist_ok=False)
     return cfg
 
 #example input
 model_name = "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x"
-#model_name2 = 'COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x'
+#model_name = 'COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x'
 cfg = initialize_base_cfg(model_name)
 
 
@@ -61,7 +63,6 @@ class D2_hyperopt(D2_hyperopt_Base):
             (['solver', 'BASE_LR'], random.uniform(0.0001, 0.0006)),
         ]
         return hps
-
 
 
     def prune_handling(self,pruned_ids):

@@ -21,8 +21,10 @@ import matplotlib
 #matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 #model_resnet = resnet101(True).to(compute_device)
-compute_device = "cuda:1"
+compute_device = "cuda:0"
 
+def set_device(device):
+    compute_device = device
 class StopByProgressHook():
     '''
     Classic early stop by tracking progress. Assumes that score can be obtained as (score,key) value from key "storage_key" from trainer storage.
@@ -115,6 +117,7 @@ class Trainer():
 #        return ckpt_dict
 
     def train(self):
+        print(torch.cuda.memory_summary(device=compute_device))
         print("TRAINING TO ", self.max_iter)
         self.before_train()
         val_loss = float('-inf')
@@ -124,7 +127,7 @@ class Trainer():
             if done:
                 print("breaking")
                 break
-            train_dataloader = iter(get_loader(self.dt, 4,wts=self.dt_wts))
+            train_dataloader = iter(get_loader(self.dt, self.bs,wts=self.dt_wts))
             for batch, targets in train_dataloader:
                 time_pt = time.time()
                 batch = batch.to(compute_device)
@@ -136,8 +139,7 @@ class Trainer():
                     loss.backward()
                     self.optimizer.step()
                     self.optimizer.zero_grad()
-
-                if self.itr % self.eval_period == 0:
+                if self.itr % self.eval_period == 0 and self.itr > 0 :
                     val_loss = self.validate(self.val_nr)
                     self.net.train()
                     self.scheduler.step(val_loss)
@@ -148,16 +150,15 @@ class Trainer():
                 # log
                 if self.itr % self.print_period == 0:
                     time_pt = time.time()
-                    print_str = f"time  / iter {(time_pt - time_last) / self.print_period}, iter is {self.itr}, lr is {self.optimizer.param_groups[0]['lr']}"
+                    print_str = f"time  / iter {(time_pt - time_last) / self.print_period}, iter is {self.itr}, lr is {self.optimizer.param_groups[0]['lr']}, memory allocated is {torch.cuda.memory_allocated(compute_device)}"
                     time_last = time_pt
                     print(print_str)
-                    print(torch.cuda.memory_summary(1,True))
+
 
 
                 done = (self.itr >= self.max_iter)
-
-                self.itr = self.itr + 1
                 self.after_step()
+                self.itr = self.itr + 1
                 if done:
                     print("reached", self.max_iter)
                     break
@@ -191,6 +192,7 @@ class Trainer():
             raise AttributeError("ERROR, did not supply dt_val but calling validation")
         if val_nr is None:
             val_nr = len(self.dt_val)
+        print("validating with ", val_nr, " observations")
         val_loader = get_loader(self.dt_val, bs)
         total_loss = torch.tensor(0.0, device=compute_device)
         instances_nr = torch.tensor(0, device='cpu')
@@ -204,7 +206,9 @@ class Trainer():
                 total_loss += fun(out, targets)
                 if instances_nr + 1 >= val_nr:
                     break
-        return total_loss.to('cpu')/instances_nr
+        result = total_loss.to('cpu') / instances_nr
+        print("avg val value is " , result)
+        return result
 
 
 
@@ -241,6 +245,8 @@ class Hyperopt():
         self.pruner = SHA(self.max_iter / self.iter_chunk_size, factor=3, topK=3)
         self.val_nr = val_nr
         self.result_df = None
+
+
     def hyperopt(self):
         bs = 4
         # create paths
@@ -273,14 +279,12 @@ class Hyperopt():
         model_params = self.base_params['model'] if 'model' in self.base_params else {}
         scheduler_params = self.base_params['scheduler'] if 'scheduler' in self.base_params else {}
         loss_params = self.base_params['loss'] if 'loss' in self.base_params else {}
-
         net = self.model_cls(**model_params).to(compute_device)
         optimizer = self.optimizer_cls(net.parameters(), lr=hyper['lr'], momentum=hyper['momentum'],**optimizer_params)
         scheduler = self.scheduler_cls(optimizer,factor=hyper['gamma'],**scheduler_params)
         loss_fun = self.loss_cls(**loss_params)
         fun_val = self.loss_cls(reduction = 'sum')
-        print("initializing training with hyper-parameters",hyper)
-        trainer = Trainer_Save_Best(dt = self.dt,dt_wts = self.dt_wts,net = net,optimizer=optimizer,max_iter=max_iter,scheduler=scheduler,loss_fun = loss_fun,output_dir = model_dir,eval_period = self.eval_period,print_period=50,bs=4,dt_val=self.dt_val, fun_val=fun_val,val_nr = self.val_nr,add_max_iter_to_loaded=True)
+        trainer = Trainer_Save_Best(dt = self.dt,dt_wts = self.dt_wts,net = net,optimizer=optimizer,max_iter=max_iter,scheduler=scheduler,loss_fun = loss_fun,output_dir = model_dir,eval_period = self.eval_period,print_period=50,bs=self.bs,dt_val=self.dt_val, fun_val=fun_val,val_nr = self.val_nr,add_max_iter_to_loaded=True)
         if model_dir is not None:
             try:
                 trainer.load(os.path.join(model_dir,"checkpoint.pth"))

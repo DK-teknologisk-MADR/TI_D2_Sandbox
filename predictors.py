@@ -4,7 +4,7 @@ import re
 import os
 
 class ModelTester():
-    def __init__(self,cfg_fp,chk_fp=None,predictor_cls = DefaultPredictor):
+    def __init__(self,cfg_fp,chk_fp=None,predictor_cls = DefaultPredictor,device = 'cuda:0'):
         '''
         Inputs:
         cfg_fp : file path of cfg
@@ -18,6 +18,7 @@ class ModelTester():
         '''
         self.cfg = get_cfg()
         self.cfg.merge_from_file(cfg_fp)
+        self.device = device
         if chk_fp is None:
 
             pattern = '.+\.pkl$ | .+\.pth$'
@@ -29,8 +30,8 @@ class ModelTester():
             else:
               raise ValueError("no checkpoint given, and no checkpoint found in wd")
         self.cfg.MODEL.WEIGHTS = chk_fp
+        self.cfg.MODEL.DEVICE = device
         self.predictor = predictor_cls(self.cfg)
-
     def post_process(self,pred_outputs):
         '''
         should take whatever model spits out (D2 "instances" object with tensors) and return kpts as numpy array.

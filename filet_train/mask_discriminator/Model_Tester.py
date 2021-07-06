@@ -1,6 +1,6 @@
 import torch
 
-class Model_Tester(torch.nn.Module):
+class Model_Tester():
     def __init__(self,net,path_to_save_file,device='cuda:0'):
         super().__init__()
         self.net = net
@@ -10,6 +10,5 @@ class Model_Tester(torch.nn.Module):
         self.net.to(device)
         self.device = device
 
-    def get_evaluation(self):
-        raise NotImplementedError
-
+    def get_evaluation(self,inputs):
+        return self.net(inputs)
