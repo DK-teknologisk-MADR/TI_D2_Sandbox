@@ -3,7 +3,7 @@ setup_logger()
 import numpy as np
 import cv2
 from filet_train.mask_discriminator.Model_Tester_Mask import Model_Tester_Mask
-from filet_train.pytorch_ML.networks import IOU_Discriminator
+from pytorch_ML.networks import IOU_Discriminator
 from detectron2_ML.predictors import ModelTester
 import torch
 import torchvision

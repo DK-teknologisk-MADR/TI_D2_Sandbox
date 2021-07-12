@@ -2,7 +2,7 @@ from filet_train.mask_discriminator.mask_data_loader import rm_dead_data_and_get
 from torchvision import transforms
 
 import numpy as np
-from filet_train.pytorch_ML.networks import IOU_Discriminator
+from pytorch_ML.networks import IOU_Discriminator
 from Model_Tester_Mask import Model_Tester_Mask
 #import scikit_learn.metrics.confusion_matrix
 from sklearn.metrics import confusion_matrix,ConfusionMatrixDisplay

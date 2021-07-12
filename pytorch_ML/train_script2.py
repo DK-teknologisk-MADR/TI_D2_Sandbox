@@ -1,17 +1,16 @@
 import torch
 
 print(torch.cuda.memory_summary())
-
-import filet_train.pytorch_ML.mask_discriminator as md
+import scipy
+import pytorch_ML.hyperopt as md
 import torch.nn as nn
 from filet_train.mask_discriminator.mask_data_loader import rm_dead_data_and_get_ious , get_file_pairs, Filet_Seg_Dataset
 import numpy as np
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from filet_train.pytorch_ML.networks import IOU_Discriminator
+from pytorch_ML.networks import IOU_Discriminator
 from torchvision.transforms import Normalize
 
-device = 'cuda:0'
 data_dir = '/pers_files/mask_pad_data'
 train_split = "train"
 model_path = '/pers_files/mask_models_pad_mask19'
@@ -25,13 +24,19 @@ iou_arr = np.array(list(iou_dict.values()))
 
 #move to script in the end:
 #-----------------------------
-
+def normalize_ious(iou_arr):
+    r_vals = scipy.special.logit(iou_arr)
+    normed_r = (iou_arr - iou_arr.mean()) / iou_arr.std()
+    iou_normed = scipy.special.expit(normed_r)
+    return iou_normed
 #-----------------------------
 
+
+#ty = [Normalize( mean=iou_arr.mean(), std=iou_arr.std())]
 tx = [Normalize( mean=[0.485, 0.456, 0.406,0.425], std=[0.229, 0.224, 0.225,0.226])]
-dt = Filet_Seg_Dataset(data,iou_dict,data_dir,train_split,trs_x= tx , trs_y_bef=[],mask_only=False)
-dt_val = Filet_Seg_Dataset(data_val,iou_dict_val,data_dir,val_split,trs_x= tx,trs_y_bef=[],mask_only=False)
-ious = iou_arr
+dt = Filet_Seg_Dataset(data,iou_dict,data_dir,train_split,trs_x= tx , trs_y_bef=[normalize_ious],mask_only=False)
+dt_val = Filet_Seg_Dataset(data_val,iou_dict_val,data_dir,val_split,trs_x= tx,trs_y_bef=[normalize_ious],mask_only=False)
+ious = iou_arr #CHANGE TO DT
 st_inds = np.argsort(ious)
 qs = np.arange(0.04,1.0,0.04)[:6]
 quants = np.quantile(ious,qs)
@@ -57,14 +62,12 @@ base_params = {
 
 #hyper = md.Hyperopt(model_path,max_iter = 250000,iter_chunk_size = 100,dt= dt,model_cls= IOU_Discriminator,optimizer_cls= optim.SGD,scheduler_cls= ReduceLROnPlateau,loss_cls= nn.BCEWithLogitsLoss,output_dir=model_path, bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 180,dt_wts = weights)
 
-net = IOU_Discriminator(device=device)
+net = IOU_Discriminator(device='cuda:1')
 optimizer = optim.SGD(net.parameters(),lr = 0.05,momentum=0.23,nesterov= True)
-scheduler = ReduceLROnPlateau(optimizer,'min',0.23,patience = 4,verbose=True)
+scheduler = ReduceLROnPlateau(optimizer,'min',0.23,patience = 5,verbose=True)
 loss_fun = nn.BCEWithLogitsLoss()
 fun_val = nn.BCEWithLogitsLoss(reduction='sum')
 
-trainer = md.Trainer_Save_Best(net=net,dt=dt, optimizer = optimizer, scheduler = scheduler, loss_fun =loss_fun , max_iter=3000, output_dir ='/pers_files/mask_models_pad_mask19/model49/trained', eval_period=150, print_period=50,bs=3,
+trainer = md.Trainer_Save_Best(net=net,dt=dt, optimizer = optimizer, scheduler = scheduler, loss_fun =loss_fun , max_iter=5000, output_dir ='/pers_files/mask_models_pad_mask19/model49/trained_norm_y', eval_period=150, print_period=50,bs=3,
                                dt_val=dt_val, dt_wts=weights, fun_val=fun_val, val_nr=None, add_max_iter_to_loaded=False)
 trainer.train()
-
-

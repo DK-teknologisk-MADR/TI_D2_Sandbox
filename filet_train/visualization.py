@@ -1,6 +1,6 @@
 
 import re
-from filet_train.pytorch_ML.compute_IoU import get_ious
+from pytorch_ML import get_ious
 import torch
 import json
 from detectron2_ML import data_utils

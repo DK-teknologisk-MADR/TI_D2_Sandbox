@@ -5,7 +5,11 @@ from torch.utils.data.sampler import WeightedRandomSampler
 from torch.utils.data.dataloader import DataLoader
 import numpy as np
 class Trainer():
-    def __init__(self,dt,net, optimizer, scheduler,loss_fun, max_iter, output_dir,eval_period=250, print_period=50,bs=4,dt_val = None,dt_wts = None,fun_val = None , val_nr = None,add_max_iter_to_loaded = False,compute_device = 'cuda:0'):
+    def __init__(self,dt,net, optimizer = None, scheduler = None,loss_fun = None, max_iter= 200, output_dir ="./trainer_output",eval_period=250, print_period=50,bs=4,dt_val = None,dt_wts = None,fun_val = None , val_nr = None,add_max_iter_to_loaded = False,gpu_id = 0):
+        validation_stuff = [dt_val,eval_period,fun_val]
+        #validation_variables = {'dt_val' : dt_val, 'eval_period' : eval_period, 'fun_val' : fun_val}
+        val_nones = [x is None for x in validation_stuff]
+        assert all(val_nones) or not any(val_nones) , "some val variables seems to be none while some are not"
         self.net = net
         self.optimizer = optimizer
         self.scheduler = scheduler
@@ -14,7 +18,7 @@ class Trainer():
         self.output_dir = output_dir
         self.eval_period = eval_period
         self.print_period = print_period
-        self.compute_device = compute_device
+        self.gpu_id = gpu_id
         self.bs = bs
         self.itr = 0
         self.dt = dt
@@ -26,8 +30,13 @@ class Trainer():
         self.best_val_loss = float('inf')
         self.val_loss_cur= float('inf')
 
+        self.net.to('cuda:'+str(self.gpu_id))
 
-    def get_loader(self,dt,bs,wts):
+
+    def choose_appropriate_lr_scheduler(self):
+        pass
+
+    def get_loader(self,dt,bs,wts = None):
         if wts is None:
             wts = np.ones(len(dt))
         sampler = WeightedRandomSampler(weights=wts, num_samples=len(dt), replacement=True)
@@ -67,7 +76,7 @@ class Trainer():
 #        return ckpt_dict
 
     def train(self):
-        print(torch.cuda.memory_summary(device=self.compute_device))
+#        print(torch.cuda.memory_summary(device=self.gpu_id))
         print("TRAINING TO ", self.max_iter)
         self.before_train()
         val_loss = float('-inf')
@@ -80,8 +89,8 @@ class Trainer():
             train_dataloader = iter(self.get_loader(self.dt, self.bs,wts=self.dt_wts))
             for batch, targets in train_dataloader:
                 time_pt = time.time()
-                batch = batch.to(self.compute_device)
-                targets = targets.to(self.compute_device)
+                batch = batch.to(self.gpu_id)
+                targets = targets.to(self.gpu_id)
                 with torch.set_grad_enabled(True):
                     out = self.net(batch).flatten()
                     targets = targets.float()
@@ -100,7 +109,7 @@ class Trainer():
                 # log
                 if self.itr % self.print_period == 0:
                     time_pt = time.time()
-                    print_str = f"time  / iter {(time_pt - time_last) / self.print_period}, iter is {self.itr}, lr is {self.optimizer.param_groups[0]['lr']}, memory allocated is {torch.cuda.memory_allocated(compute_device)}"
+                    print_str = f"time  / iter {(time_pt - time_last) / self.print_period}, iter is {self.itr}, lr is {self.optimizer.param_groups[0]['lr']}, memory allocated is {torch.cuda.memory_allocated(self.gpu_id)}"
                     time_last = time_pt
                     print(print_str)
 
@@ -144,13 +153,13 @@ class Trainer():
             val_nr = len(self.dt_val)
         print("validating with ", val_nr, " observations")
         val_loader = self.get_loader(self.dt_val, bs)
-        total_loss = torch.tensor(0.0, device=self.compute_device)
+        total_loss = torch.tensor(0.0, device=self.gpu_id)
         instances_nr = torch.tensor(0, device='cpu')
         with torch.no_grad():
             for batch, targets in val_loader:
                 instances_nr += batch.shape[0]
-                batch = batch.to(self.compute_device)
-                targets = targets.to(self.compute_device)
+                batch = batch.to(self.gpu_id)
+                targets = targets.to(self.gpu_id)
                 out = self.net(batch).flatten()
                 targets = targets.float()
                 total_loss += fun(out, targets)

@@ -3,6 +3,7 @@ from numpy.random import uniform
 from detectron2_ML.pruners import SHA
 import pandas as pd
 import os
+from pytorch_ML.trainer import Trainer_Save_Best
 
 #matplotlib.use('TkAgg')
 #model_resnet = resnet101(True).to(compute_device)
@@ -75,7 +76,7 @@ class Hyperopt():
         hyper_vals = []
         paths = []
         for i in range(self.pruner.participants):
-            path = os.path.join(self.base_path, f"model{i}")
+            path = os.path.join(self.output_dir, f"model{i}")
             os.makedirs(path, exist_ok=True)
             paths.append(path)
             hyper = self.suggest_hyper_dict()

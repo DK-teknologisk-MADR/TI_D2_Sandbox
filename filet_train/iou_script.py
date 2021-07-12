@@ -1,5 +1,5 @@
 import re
-from filet_train.pytorch_ML.compute_IoU import get_ious, find_best_iou
+from pytorch_ML import get_ious, find_best_iou
 import torch
 import json
 from copy import deepcopy
