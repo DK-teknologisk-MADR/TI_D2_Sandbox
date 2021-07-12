@@ -1,19 +1,11 @@
 import random
-import os , shutil , json
-from copy import deepcopy
-from numpy.random import choice, randint,uniform
-from detectron2.engine import DefaultTrainer
+import os , shutil
 from detectron2.config import get_cfg
 from detectron2 import model_zoo
-from detectron2.data import DatasetMapper, build_detection_train_loader
-import detectron2.data.transforms as T
 from detectron2.evaluation import COCOEvaluator
-from pruners import SHA
-from trainers import TrainerPeriodicEval
-from hyperoptimization import D2_hyperopt_Base
+from detectron2_ML.hyperoptimization import D2_hyperopt_Base
 from numpy import random
-from data_utils import get_data_dicts, register_data
-import datetime
+from detectron2_ML.data_utils import get_data_dicts, register_data
 
 splits = ['train','val']
 data_dir = "/pers_files/Combined_final/Filet"

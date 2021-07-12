@@ -1,17 +1,13 @@
 import numpy as np
 import torch
-from torchvision.transforms import ToTensor, Compose, Normalize
+from torchvision.transforms import Compose
 import cv2
-
 from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
-from data_utils import get_file_pairs
 import json
 import os
-import shutil
-from data_utils import get_file_pairs
+from detectron2_ML.data_utils import get_file_pairs
 #import matplotlib
 #matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
 def get_file_pairs(data_dir,split):
     '''
     input: data directory, and split ( train val test).
@@ -147,9 +143,9 @@ class Filet_Seg_Dataset(Dataset):
                 iou = self.tr_y(iou)
         return pic,iou
 
-def get_loader(dataset,bs,wts =None):
-    if wts is None:
-        wts = np.ones(len(dataset))
-    sampler = WeightedRandomSampler(weights=wts, num_samples=len(dataset), replacement=True)
-    return DataLoader(dataset, batch_size=bs, sampler=sampler, num_workers=0, pin_memory=True)
+#def get_loader(dataset,bs,wts =None):
+#    if wts is None:
+#        wts = np.ones(len(dataset))
+#    sampler = WeightedRandomSampler(weights=wts, num_samples=len(dataset), replacement=True)
+#    return DataLoader(dataset, batch_size=bs, sampler=sampler, num_workers=0, pin_memory=True)
 

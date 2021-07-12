@@ -5,12 +5,12 @@ import torch.cuda
 from detectron2.config import get_cfg
 import numpy as np
 import pandas as pd
-from trainers import TI_Trainer
+from detectron2_ML.trainers import TI_Trainer
 from detectron2.data import build_detection_train_loader, DatasetMapper
 from detectron2.evaluation import COCOEvaluator
-import hooks
+from detectron2_ML import hooks
 import detectron2.data.transforms as T
-from data_utils import get_data_dicts,register_data
+from detectron2_ML.data_utils import get_data_dicts,register_data
 
 
 pd.set_option('display.max_columns', None)
@@ -71,7 +71,7 @@ class Trainer(TI_Trainer):
     def build_hooks(self):
         res = super().build_hooks()
 
-        res.append(hooks.StopByProgressHook(patience=25*self.period_between_evals,delta_improvement=0.5,score_storage_key='segm/AP',save_name_base="best_model"))
+        res.append(hooks.StopByProgressHook(patience=25 * self.period_between_evals, delta_improvement=0.5, score_storage_key='segm/AP', save_name_base="best_model"))
         return res
 
     def helper_after_train(self,**kwargs):

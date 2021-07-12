@@ -2,7 +2,7 @@ import torch
 from torchvision import transforms
 from torch import sigmoid
 import numpy as np
-from filet_train.mask_discriminator.Model_Tester import Model_Tester
+from filet_train.pytorch_ML.Model_Tester import Model_Tester
 
 
 class Model_Tester_Mask(Model_Tester):

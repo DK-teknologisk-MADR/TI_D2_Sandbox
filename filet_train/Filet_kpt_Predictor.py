@@ -1,11 +1,10 @@
 from detectron2.utils.logger import setup_logger
 setup_logger()
 import numpy as np
-import os, json, cv2, random
-import time
+import cv2
 from filet_train.mask_discriminator.Model_Tester_Mask import Model_Tester_Mask
-from filet_train.mask_discriminator.networks import IOU_Discriminator
-from predictors import ModelTester
+from filet_train.pytorch_ML.networks import IOU_Discriminator
+from detectron2_ML.predictors import ModelTester
 import torch
 import torchvision
 from torchvision.transforms import Normalize

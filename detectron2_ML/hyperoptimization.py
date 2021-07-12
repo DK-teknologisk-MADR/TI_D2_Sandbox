@@ -1,6 +1,4 @@
-import copy
 import os
-import shutil
 from detectron2.data import build_detection_test_loader
 from trainers import TI_Trainer
 from detectron2.evaluation import inference_on_dataset
@@ -9,7 +7,6 @@ from hooks import StopAtIterHook
 from pruners import SHA
 import pandas as pd
 # install dependencies:
-import torch
 import datetime
 #assert torch.cuda.is_available(), "torch cant find cuda. Is there GPU on the machine?"
 from detectron2.utils.logger import setup_logger

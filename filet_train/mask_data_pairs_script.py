@@ -1,13 +1,13 @@
 import os
 import re
-from compute_IoU import find_best_iou, get_ious
+from filet_train.pytorch_ML.compute_IoU import find_best_iou, get_ious
 import json
 from copy import deepcopy
 import torch
 from torch.nn import Conv2d
-import data_utils
+from detectron2_ML import data_utils
 import cv2
-from data_utils import get_file_pairs
+from detectron2_ML.data_utils import get_file_pairs
 import pandas as pd
 import matplotlib
 from skimage.draw import polygon2mask
@@ -60,8 +60,8 @@ crop_dim = [[200,1024-200],[0,1024]]
 pixel_pad = 19
 cr = Cropper(crop_dim,pixel_pad)
 
-coco_dicts = data_utils.get_data_dicts(data_dir,'train',file_pairs=get_file_pairs_2021(data_dir,split))
-data_utils.register_data('filet',['train'],coco_dicts,{'thing_classes' : ['filet']})
+coco_dicts = data_utils.get_data_dicts(data_dir, 'train', file_pairs=get_file_pairs_2021(data_dir, split))
+data_utils.register_data('filet', ['train'], coco_dicts, {'thing_classes' : ['filet']})
 cfg_fp = base_dir + "/cfg.yaml"
 chk_dir = base_dir + "/best_model.pth"
 

@@ -1,27 +1,18 @@
 import datetime
-from hooks import
-import numpy.random
-import hooks
-import os , shutil , json
-from copy import deepcopy
-from numpy.random import choice, randint,uniform
-from detectron2.engine import DefaultTrainer
+from detectron2_ML import hooks
+import os , json
 from detectron2.config import get_cfg
 from detectron2 import model_zoo
 from detectron2.data import DatasetMapper, build_detection_train_loader
 import detectron2.data.transforms as T
-from detectron2.evaluation import COCOEvaluator
 from math import log, floor
-from trainers import TrainerPeriodicEval
-from hyperoptimization import D2_hyperopt_Base
-from data_utils import get_data_dicts, register_data
+from detectron2_ML.trainers import TrainerPeriodicEval
+from detectron2_ML.data_utils import get_data_dicts
 from numpy.random import choice
 from detectron2.data import DatasetCatalog,MetadataCatalog
 import re
 import torch
 import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 
 splits = ['train','val']
 data_dir = "/pers_files/Combined_final/Filet"
@@ -177,7 +168,7 @@ class Trainer(TrainerPeriodicEval):
 
     def build_hooks(self):
         res = super().build_hooks()
-        hook = hooks.StopByProgressHook(patience=10*self.period_between_evals,delta_improvement=0.5,score_storage_key='segm/AP',save_name_base="best_model")
+        hook = hooks.StopByProgressHook(patience=10 * self.period_between_evals, delta_improvement=0.5, score_storage_key='segm/AP', save_name_base="best_model")
         #hook = hooks.StopByProgressHook(patience=2*self.period_between_evals,delta_improvement=0,score_storage_key='segm/AP',save_name_base="best_model")
         res.append(hook)
         return res

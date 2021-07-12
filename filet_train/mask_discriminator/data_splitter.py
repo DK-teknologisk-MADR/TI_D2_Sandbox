@@ -1,5 +1,5 @@
 
-from mask_data_loader import get_file_pairs,rm_dead_data_and_get_ious
+from filet_train.mask_discriminator.mask_data_loader import rm_dead_data_and_get_ious
 import numpy as np
 import os
 import shutil

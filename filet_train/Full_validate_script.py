@@ -1,10 +1,8 @@
 from filet_train.Filet_kpt_Predictor import Filet_ModelTester3
 import os
 import cv2
-import matplotlib
-import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-from data_utils import get_file_pairs
+from detectron2_ML.data_utils import get_file_pairs
 seg_model_dir = "/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
 seg_model_fp = os.path.join(seg_model_dir,'best_model.pth')
 seg_model_cfg_fp = os.path.join(seg_model_dir,'cfg.yaml')

@@ -1,25 +1,22 @@
 
 import re
-from filet_train.compute_IoU import get_ious
+from filet_train.pytorch_ML.compute_IoU import get_ious
 import torch
 import json
-import data_utils
-import numpy as np
-from predictors import ModelTester
+from detectron2_ML import data_utils
 import cv2
-from data_utils import get_file_pairs
+from detectron2_ML.data_utils import get_file_pairs
 import os
-from numba import prange,njit
 from skimage.draw import polygon2mask
 import pandas as pd
 import matplotlib
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-from detectron2.structures import Instances
 import numpy as np
 matplotlib.use('TkAgg')
 from detectron2.utils.visualizer import Visualizer
-from detectron2.data import MetadataCatalog,DatasetCatalog
+from detectron2.data import MetadataCatalog
+
 torch.cuda.device(1)
 from filet_train.Filet_kpt_Predictor import Filet_ModelTester
 print(torch.cuda.current_device())
@@ -48,9 +45,9 @@ def get_file_pairs_2021(data_dir,split):
 data_dir = '/pers_files/Combined_final/Filet'
 
 base_dir = "/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
-coco_dicts = data_utils.get_data_dicts(data_dir,'train',file_pairs=get_file_pairs_2021(data_dir,'train'))
+coco_dicts = data_utils.get_data_dicts(data_dir, 'train', file_pairs=get_file_pairs_2021(data_dir, 'train'))
 
-data_utils.register_data('filet',['train'],coco_dicts,{'thing_classes' : ['filet']})
+data_utils.register_data('filet', ['train'], coco_dicts, {'thing_classes' : ['filet']})
 
 
 
