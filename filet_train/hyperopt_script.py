@@ -43,7 +43,7 @@ class D2_hyperopt(D2_hyperopt_Base):
         hps = [
             (['model', 'backbone', 'freeze_at'], random.randint(0, 3)),
             (['model', 'anchor_generator', 'sizes'],self.suggest_helper(random.randint(0,3))),
-            (['model', 'anchor_generator', 'aspect_ratios'], random.choice([[0.5, 1.0, 2.0], [0.25, 0.5, 1.0, 2.0]])),
+            (['model', 'anchor_generator', 'aspect_ratios'], random.choice([[0.5, 1.0, 2.0], [0.25, 0.5, 1.0, 2.0],[0,25,0.5, 1.0]])),
             (['solver', 'BASE_LR'], random.uniform(0.0001, 0.0004)),
             (['model', 'roi_heads', 'batch_size_per_image'], int(random.choice([128, 256, 512]))),
         ]
@@ -77,6 +77,7 @@ def initialize_base_cfg(model_name,output_dir,cfg=None):
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
     return cfg
 output_dir = f'{data_dir}/output'
+
 
 # model_name2 = 'COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x'
 cfg = initialize_base_cfg(model_name,output_dir)

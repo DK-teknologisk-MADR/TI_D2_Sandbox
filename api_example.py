@@ -101,10 +101,10 @@ class TrainerWithMapper(TI_Trainer):
           return build_detection_train_loader(cfg,mapper=mapper)
 
 augmentations = [
-          T.RandomCrop('relative_range',[0.7,0.7]),
+          T.RandomCrop('relative_range',[0.9,0.9]),
           T.RandomFlip(prob=0.5, horizontal=True, vertical=False),
           T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
-          T.RandomRotation(angle = [-20,20], expand=True, center=None, sample_style='range'),
+          T.RandomRotation(angle = [-5,5], expand=True, center=None, sample_style='range'),
           T.RandomBrightness(0.85,1.15)
               ]
 

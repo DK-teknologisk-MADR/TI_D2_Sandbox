@@ -62,6 +62,7 @@ def partition_pairs_by_year(data_pairs):
     return data_pairs_2020,data_pairs_2021
 data_pairs_2020 , data_pairs_2021 = partition_pairs_by_year(train_pairs)
 _ , data_pairs_val = partition_pairs_by_year(val_pairs)
+
 DatasetCatalog.register('filet_val', lambda : get_data_dicts(data_dir, 'val', data_pairs_val))
 MetadataCatalog.get('filet_val').set(thing_classes=['filet'])
 
