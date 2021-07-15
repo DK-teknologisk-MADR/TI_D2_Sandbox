@@ -8,7 +8,7 @@ from filet_train.mask_discriminator.mask_data_loader import rm_dead_data_and_get
 import numpy as np
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from pytorch_ML.networks import IOU_Discriminator
+from pytorch_ML.networks import IOU_Discriminator, IOU_Discriminator_Sig_MSE
 from torchvision.transforms import Normalize
 
 device = 'cuda:0'
@@ -33,7 +33,7 @@ dt = Filet_Seg_Dataset(data,iou_dict,data_dir,train_split,trs_x= tx , trs_y_bef=
 dt_val = Filet_Seg_Dataset(data_val,iou_dict_val,data_dir,val_split,trs_x= tx,trs_y_bef=[],mask_only=False)
 ious = iou_arr
 st_inds = np.argsort(ious)
-qs = np.arange(0.04,1.0,0.04)[:6]
+qs = np.arange(0.04,1.0,0.04)[:7]
 quants = np.quantile(ious,qs)
 ious.std()
 np.hstack([quants])
@@ -55,7 +55,9 @@ base_params = {
     }
 }
 
-hyper = md.Hyperopt(model_path,max_iter = 250000,iter_chunk_size = 100,dt= dt,model_cls= IOU_Discriminator,optimizer_cls= optim.SGD,scheduler_cls= ReduceLROnPlateau,loss_cls= nn.BCEWithLogitsLoss,output_dir=os.path.join(model_path,"updated_net"), bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 180,dt_wts = weights)
+
+
+hyper = md.Hyperopt(model_path,max_iter = 250000,iter_chunk_size = 100,dt= dt,model_cls= IOU_Discriminator_Sig_MSE,optimizer_cls= optim.SGD,scheduler_cls= ReduceLROnPlateau,loss_cls= nn.MSELoss,output_dir=os.path.join(model_path,"MSE_net"), bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 180,dt_wts = weights)
 hyper.hyperopt()
 #net = IOU_Discriminator(device=device)
 #optimizer = optim.SGD(net.parameters(),lr = 0.05,momentum=0.23,nesterov= True)

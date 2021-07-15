@@ -49,11 +49,22 @@ class IOU_Discriminator(nn.Module):
             self.model_wide_res.conv1.weight[:, :3] = weight
         self.model_wide_res.to(self.device)
         self.to(self.device)
+
     def forward(self,x):
         x = self.model_wide_res.forward(x)
         x = self.fchead(x)
         return x
 
+
+class IOU_Discriminator_Sig_MSE(IOU_Discriminator):
+    def __init__(self, device='cuda:1'):
+        super(IOU_Discriminator_Sig_MSE, self).__init__(device = device)
+        self.sig = nn.Sigmoid()
+
+    def forward(self, x):
+        x = super(IOU_Discriminator_Sig_MSE, self).forward(x)
+        x = self.sig(x)
+        return x
 
 
 class Backbone_And_Fc_Head(nn.Module):

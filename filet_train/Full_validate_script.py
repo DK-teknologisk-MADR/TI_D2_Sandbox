@@ -1,3 +1,5 @@
+import pandas as pd
+
 from filet_train.Filet_kpt_Predictor import Filet_ModelTester3
 import os
 import cv2
@@ -6,7 +8,7 @@ from detectron2_ML.data_utils import get_file_pairs
 seg_model_dir = "/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
 seg_model_fp = os.path.join(seg_model_dir,'best_model.pth')
 seg_model_cfg_fp = os.path.join(seg_model_dir,'cfg.yaml')
-discriminator_dir ="/pers_files/mask_models_pad_mask19/model49/trained"
+discriminator_dir ="/pers_files/mask_models_pad_mask19/updated_net/model167"
 tester = Filet_ModelTester3(seg_model_cfg_fp,seg_model_fp,os.path.join(discriminator_dir,"best_model.pth"),21,print_log=True,record_plots=True,device='cuda:1')
 base_dir = "/pers_files/Filet_Test"
 split = ''
@@ -14,6 +16,8 @@ os.listdir(base_dir)
 plot_dir = os.path.join(base_dir, "viz")
 os.makedirs(plot_dir, exist_ok=True)
 img_dir = os.path.join(base_dir,split)
+#df = pd.read_csv("/pers_files/mask_models_pad_mask19/updated_net/" + '/result.csv')
+#tester.model_tester_mask.ckpt_dict
 get_file_pairs(img_dir,"")
 #pairs = {file[:-4] : file for file in os.listdir(base_dir) if file.endswith(".jpg")}
 for front, ls in pairs.items():
