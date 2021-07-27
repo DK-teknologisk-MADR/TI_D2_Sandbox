@@ -1,5 +1,6 @@
 #ignore pycharm cache files
 *.pyc
+.idea/
 *.idea
 __pycache__/
 *.jpg
