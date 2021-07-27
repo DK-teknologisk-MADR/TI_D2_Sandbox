@@ -3,7 +3,7 @@ from numpy.random import uniform
 from detectron2_ML.pruners import SHA
 import pandas as pd
 import os
-from pytorch_ML.trainer import Trainer_Save_Best
+from pytorch_ML.trainer import Trainer
 
 #matplotlib.use('TkAgg')
 #model_resnet = resnet101(True).to(compute_device)
@@ -73,31 +73,34 @@ class Hyperopt():
     def hyperopt(self):
         bs = 4
         # create paths
-        hyper_vals = []
+        self.hyper_vals = []
         paths = []
         for i in range(self.pruner.participants):
             path = os.path.join(self.output_dir, f"model{i}")
             os.makedirs(path, exist_ok=True)
             paths.append(path)
             hyper = self.suggest_hyper_dict()
-            hyper_vals.append(hyper)
-        self.result_df = pd.DataFrame(hyper_vals)
+            self.hyper_vals.append(hyper)
+        self.result_df = pd.DataFrame(self.hyper_vals)
         self.result_df['val_score'] = np.nan
-#        self.result_df['pruned'] = False TODO::Implement pruned into df
+        self.result_df['pruned'] = False
         trial_id_cur = 0
         pruned = []
         done = False
         while not done:
             val_loss = self.resume_or_initiate_train(model_dir= paths[trial_id_cur],max_iter= self.iter_chunk_size * self.pruner.get_cur_res(), hyper = hyper_vals[trial_id_cur], bs=4)
-            trial_id_cur, pruned, done = self.pruner.report_and_get_next_trial(-val_loss)
             self.result_df.loc[trial_id_cur,'val_score'] = -val_loss
-            print("trial sprint completed for ID",trial_id_cur,". rung is ",self.pruner.rung_cur)
-            print("result of this sprint was",val_loss )
-            print(".........results are................")
+            trial_id_cur, pruned, done = self.pruner.report_and_get_next_trial(-val_loss)
+            print("Hyperopt : trial sprint completed for ID",trial_id_cur,". rung is ",self.pruner.rung_cur)
+            print("Hyperopt : result of this sprint was",val_loss )
+            print("Hyperopt : .........results are................")
+            self.result_df.loc[pruned,'pruned'] = True
+            self.after_prune()
             self.pruner.print_status()
         self.result_df.to_csv(os.path.join(self.output_dir,"result.csv"))
 
     def resume_or_initiate_train(self,model_dir=None, max_iter=1, hyper={}, bs=4):
+        #TODO: MERGE THIS FROM TI not pushed to GIT yet
         optimizer_params = self.base_params['optimizer'] if 'optimizer' in self.base_params else {}
         model_params = self.base_params['model'] if 'model' in self.base_params else {}
         scheduler_params = self.base_params['scheduler'] if 'scheduler' in self.base_params else {}
@@ -107,7 +110,7 @@ class Hyperopt():
         scheduler = self.scheduler_cls(optimizer,factor=hyper['gamma'],**scheduler_params)
         loss_fun = self.loss_cls(**loss_params)
         fun_val = self.loss_cls(reduction = 'sum')
-        trainer = Trainer_Save_Best(dt = self.dt,dt_wts = self.dt_wts,net = net,optimizer=optimizer,max_iter=max_iter,scheduler=scheduler,loss_fun = loss_fun,output_dir = model_dir,eval_period = self.eval_period,print_period=50,bs=self.bs,dt_val=self.dt_val, fun_val=fun_val,val_nr = self.val_nr,add_max_iter_to_loaded=True)
+        trainer = Trainer(dt = self.dt,dt_wts = self.dt_wts,net = net,optimizer=optimizer,max_iter=max_iter,scheduler=scheduler,loss_fun = loss_fun,output_dir = model_dir,eval_period = self.eval_period,print_period=50,bs=self.bs,dt_val=self.dt_val, fun_val=fun_val,val_nr = self.val_nr,add_max_iter_to_loaded=True)
         if model_dir is not None:
             try:
                 trainer.load(os.path.join(model_dir,"checkpoint.pth"))
@@ -120,6 +123,9 @@ class Hyperopt():
         return va_Loss
     # to_load : lst of strings giving keys to extract from load
 
+    def after_prune(self):
+        pass
+
     def suggest_hyper_dict(self):
         '''
         overload this function with hyper generation.
@@ -131,3 +137,4 @@ class Hyperopt():
             "gamma": uniform(0.1, 0.9),
         }
         return hyper
+

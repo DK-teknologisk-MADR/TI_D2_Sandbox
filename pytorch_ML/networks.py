@@ -81,13 +81,14 @@ class IOU_Discriminator_Sig_MSE(IOU_Discriminator):
 
 
 class Backbone_And_Fc_Head(nn.Module):
-    def __init__(self,backbone,fcHead, device = 'cuda:0'):
+    def __init__(self,backbone = None,fcHead = None, device = 'cuda:0'):
         self.device = device
         super(Backbone_And_Fc_Head, self).__init__()
         if backbone is None:
-            self.backbone = wide_resnet50_2(False)
+            self.backbone = resnet50(False)
         else:
             self.backbone = backbone
+        self.backbone.fc = nn.Identity()
         self.fcHead = fcHead
         self.backbone.to(self.device)
         self.fcHead.to(self.device)
@@ -114,30 +115,30 @@ class WRN_Regressor(Backbone_And_Fc_Head):
     def forward(self,x):
         return super(WRN_Regressor,self).forward(x)
 
-tester = WRN_Regressor(output_dim=10)
-tester.eval()
-time1 = time()
-with torch.no_grad():
-    print("result is", tester(torch.randn(1,3,280,280).to('cuda')))
-    time2 = time()-time1
-    print(time2)
-    tester_model = torch.jit.trace(tester,torch.randn(1,3,280,280).to('cuda'))
-    time1 = time()
-    print("result is", tester_model(torch.randn(1,3,280,280).to('cuda')))
-    time2 = time()-time1
-    print(time2)
-    time1 = time()
-    print("result is", tester_model(torch.randn(1,3,280,280).to('cuda')))
-    time2 = time()-time1
-    print(time2)
-    print("result is", tester_model(torch.randn(1,3,280,280).to('cuda')))
-    time2 = time()-time1
-    print(time2)
-    print("result is", tester_model(torch.randn(1,3,280,280).to('cuda')))
-    time2 = time()-time1
-    print(time2)
-    print("result is", tester_model(torch.randn(1,3,280,280).to('cuda')))
-    time2 = time()-time1
-#print(time2)
-#print(tester)
-#print(tester_model)
+# tester = WRN_Regressor(output_dim=10)
+# tester.eval()
+# time1 = time()
+# with torch.no_grad():
+#     print("result is", tester(torch.randn(1,3,280,280).to('cuda')))
+#     time2 = time()-time1
+#     print(time2)
+#     tester_model = torch.jit.trace(tester,torch.randn(1,3,280,280).to('cuda'))
+#     time1 = time()
+#     print("result is", tester_model(torch.randn(1,3,280,280).to('cuda')))
+#     time2 = time()-time1
+#     print(time2)
+#     time1 = time()
+#     print("result is", tester_model(torch.randn(1,3,280,280).to('cuda')))
+#     time2 = time()-time1
+#     print(time2)
+#     print("result is", tester_model(torch.randn(1,3,280,280).to('cuda')))
+#     time2 = time()-time1
+#     print(time2)
+#     print("result is", tester_model(torch.randn(1,3,280,280).to('cuda')))
+#     time2 = time()-time1
+#     print(time2)
+#     print("result is", tester_model(torch.randn(1,3,280,280).to('cuda')))
+#     time2 = time()-time1
+# print(time2)
+# print(tester)
+# print(tester_model)

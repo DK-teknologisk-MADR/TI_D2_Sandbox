@@ -33,9 +33,7 @@ class Trainer():
         self.net.to('cuda:'+str(self.gpu_id))
 
 
-    def choose_appropriate_lr_scheduler(self):
-        pass
-
+ 
     def get_loader(self,dt,bs,wts = None):
         if wts is None:
             wts = np.ones(len(dt))
@@ -68,7 +66,7 @@ class Trainer():
             self.itr = ckpt_dict['itr']
             if self.add_max_iter_to_loaded:
                 self.max_iter += self.itr
-            self.best_val_score = ckpt_dict['val_loss']
+            self.best_val_loss = ckpt_dict['val_loss']
             print(f"=> loaded checkpoint '{filepath}' (itr {self.itr}) with val_loss{ckpt_dict['val_loss']}")
         else:
             print("=> no checkpoint found at '{}'".format(filepath))
@@ -76,6 +74,7 @@ class Trainer():
 #        return ckpt_dict
 
     def train(self):
+        timer = 0
 #        print(torch.cuda.memory_summary(device=self.gpu_id))
         print("TRAINING TO ", self.max_iter)
         self.before_train()
@@ -88,7 +87,7 @@ class Trainer():
                 break
             train_dataloader = iter(self.get_loader(self.dt, self.bs,wts=self.dt_wts))
             for batch, targets in train_dataloader:
-                time_pt = time.time()
+                time_start = time.time()
                 batch = batch.to(self.gpu_id)
                 targets = targets.to(self.gpu_id)
                 with torch.set_grad_enabled(True):
@@ -98,19 +97,14 @@ class Trainer():
                     loss.backward()
                     self.optimizer.step()
                     self.optimizer.zero_grad()
+                time_end = time.time()
                 if self.itr % self.eval_period == 0 and self.itr > 0 :
-                    val_loss = self.validate(self.val_nr)
-                    self.net.train()
-                    self.scheduler.step(val_loss)
-                    self.val_loss_cur = val_loss.numpy()
-                    if self.best_val_loss>self.val_loss_cur:
-                        self.best_val_loss = self.val_loss_cur
-
+                    self.val_and_maybe_save('best_model.pth')
+                timer += time_end-time_start
                 # log
                 if self.itr % self.print_period == 0:
-                    time_pt = time.time()
-                    print_str = f"time  / iter {(time_pt - time_last) / self.print_period}, iter is {self.itr}, lr is {self.optimizer.param_groups[0]['lr']}, memory allocated is {torch.cuda.memory_allocated(self.gpu_id)}"
-                    time_last = time_pt
+                    print_str = f"time  / iter {timer / self.print_period}, iter is {self.itr}, lr is {self.optimizer.param_groups[0]['lr']}, memory allocated is {torch.cuda.memory_allocated(self.gpu_id)}"
+                    timer = 0
                     print(print_str)
 
 
@@ -129,12 +123,7 @@ class Trainer():
         pass
 
     def after_train(self):
-        val_loss = self.validate(self.val_nr)
-        self.net.train()
-        self.val_loss_cur = val_loss.numpy()
-        if self.best_val_loss > self.val_loss_cur:
-            self.best_val_loss = self.val_loss_cur
-            self.save_model(file_name=f"best_model.pth", to_save={'val_loss': self.best_val_loss})
+        self.val_and_maybe_save('best_model.pth')
         self.save_model(file_name=f"checkpoint.pth",to_save={'val_loss' : self.best_val_loss})
 
     def before_step(self):
@@ -167,7 +156,28 @@ class Trainer():
                     break
         result = total_loss.to('cpu') / instances_nr
         print("avg val value is " , result)
+        self.net.train()
         return result
+
+
+    def val_and_maybe_save(self,file_name):
+        '''
+        -Perform validation
+        -update self.best_val_loss
+        - saves to best_model if new model is better than the last
+        '''
+        val_loss = self.validate(self.val_nr)
+        self.val_loss_cur = val_loss.numpy()
+        if self.best_val_loss > self.val_loss_cur:
+            self.best_val_loss = self.val_loss_cur
+            self.save_model(file_name=f"best_model.pth", to_save={'val_loss': self.best_val_loss})
+
+
+
+
+
+
+
 
 
 
@@ -175,12 +185,5 @@ class Trainer():
 class Trainer_Save_Best(Trainer):
     def __init__(self,**kwargs_to_trainer):
         super().__init__(**kwargs_to_trainer)
-        self.previous_best_loss = float('inf')
-
-    def after_step(self):
-        if self.itr % self.eval_period == 0:
-            print("checking if best<pervious",self.best_val_loss<self.previous_best_loss)
-            if self.best_val_loss<self.previous_best_loss:
-                self.save_model(file_name="best_model.pth",to_save={'val_loss' : self.best_val_loss})
-            self.previous_best_loss = self.best_val_loss
+        """deprecated, use normal trainer instead"""
 

@@ -46,7 +46,7 @@ class SHA(pruner_base):
         self.max_trials_in_rung_cur = len(self.rung_results)
         self.done = False
         print(
-            f"----------------------\n SHA INITIALIZED \n NUMBER OF TRIALS: {self.participants}\n RUNGS TO COMPLETE: {self.rungs - self.rungs_to_skip}\n ----------------------")
+            f"PRUNER : ----------------------\n SHA INITIALIZED \n NUMBER OF TRIALS: {self.participants}\n RUNGS TO COMPLETE: {self.rungs - self.rungs_to_skip}\n ----------------------")
 
     def compute_rungs(self):
         return np.real(lambertw(log(self.factor) * self.max_res / pow(self.factor, self.rungs_to_skip - 1))) / np.log(
@@ -85,7 +85,7 @@ class SHA(pruner_base):
         return self.rung_results
 
     def print_status(self):
-        print("TOP K IS")
+        print("PRUNER : TOP K IS")
         to_print = self.rung_results.copy()
         to_print.sort(reverse=True, key=lambda tup: tup[1])
         print(to_print[:self.topK])
