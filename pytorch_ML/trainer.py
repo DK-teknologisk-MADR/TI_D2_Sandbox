@@ -27,8 +27,8 @@ class Trainer():
         self.fun_val = fun_val
         self.val_nr = val_nr
         self.dt_wts = dt_wts
-        self.best_val_loss = float('inf')
-        self.val_loss_cur= float('inf')
+        self.best_val_score =-float('inf')
+        self.val_score_cur=-float('inf')
 
         self.net.to('cuda:'+str(self.gpu_id))
 
@@ -66,8 +66,8 @@ class Trainer():
             self.itr = ckpt_dict['itr']
             if self.add_max_iter_to_loaded:
                 self.max_iter += self.itr
-            self.best_val_loss = ckpt_dict['val_loss']
-            print(f"=> loaded checkpoint '{filepath}' (itr {self.itr}) with val_loss{ckpt_dict['val_loss']}")
+            self.best_val_score = ckpt_dict['val_score']
+            print(f"=> loaded checkpoint '{filepath}' (itr {self.itr}) with val score {ckpt_dict['val_score']}")
         else:
             print("=> no checkpoint found at '{}'".format(filepath))
 
@@ -78,7 +78,7 @@ class Trainer():
 #        print(torch.cuda.memory_summary(device=self.gpu_id))
         print("TRAINING TO ", self.max_iter)
         self.before_train()
-        val_loss = float('-inf')
+        val_score = float('-inf')
         done = False
         time_last = time.time()
         while not done:
@@ -117,14 +117,14 @@ class Trainer():
                     break
         self.after_train()
 
-        return self.best_val_loss
+        return self.best_val_score
 
     def before_train(self):
         pass
 
     def after_train(self):
         self.val_and_maybe_save('best_model.pth')
-        self.save_model(file_name=f"checkpoint.pth",to_save={'val_loss' : self.best_val_loss})
+        self.save_model(file_name=f"checkpoint.pth",to_save={'val_score' : self.best_val_score})
 
     def before_step(self):
         pass
@@ -163,14 +163,14 @@ class Trainer():
     def val_and_maybe_save(self,file_name):
         '''
         -Perform validation
-        -update self.best_val_loss
+        -update self.best_val_score
         - saves to best_model if new model is better than the last
         '''
-        val_loss = self.validate(self.val_nr)
-        self.val_loss_cur = val_loss.numpy()
-        if self.best_val_loss > self.val_loss_cur:
-            self.best_val_loss = self.val_loss_cur
-            self.save_model(file_name=f"best_model.pth", to_save={'val_loss': self.best_val_loss})
+        val_score = self.validate(self.val_nr)
+        self.val_score_cur = val_score.numpy()
+        if self.best_val_score < self.val_score_cur:
+            self.best_val_score = self.val_score_cur
+            self.save_model(file_name=f"best_model.pth", to_save={'val_score': self.best_val_score})
 
 
 

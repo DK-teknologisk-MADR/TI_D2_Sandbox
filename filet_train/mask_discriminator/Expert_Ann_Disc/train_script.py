@@ -1,5 +1,6 @@
 import torch
-
+from torch.optim.lr_scheduler import ExponentialLR
+import pytorch_ML.networks
 print(torch.cuda.memory_summary())
 import os
 import pytorch_ML.hyperopt as md
@@ -8,7 +9,7 @@ from filet_train.mask_discriminator.mask_data_loader import rm_dead_data_and_get
 import numpy as np
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from pytorch_ML.networks import IOU_Discriminator, IOU_Discriminator_Sig_MSE
+from pytorch_ML.networks import IOU_Discriminator_01
 from torchvision.transforms import Normalize
 
 device = 'cuda:0'
@@ -28,7 +29,7 @@ iou_arr = np.array(list(iou_dict.values()))
 
 #-----------------------------
 
-tx = [Normalize( mean=[0.485, 0.456, 0.406,0.425], std=[0.229, 0.224, 0.225,0.226])]
+tx = [Normalize( mean=[0.485, 0.456, 0.406,0.], std=[0.229, 0.224, 0.225,1.])]
 dt = Filet_Seg_Dataset(data,iou_dict,data_dir,train_split,trs_x= tx , trs_y_bef=[],mask_only=False)
 dt_val = Filet_Seg_Dataset(data_val,iou_dict_val,data_dir,val_split,trs_x= tx,trs_y_bef=[],mask_only=False)
 ious = iou_arr
@@ -49,15 +50,16 @@ base_params = {
     "optimizer": {
         'nesterov' : True,
     },
-    "scheduler" : {
-        'mode' : 'min',
-        'patience' : 5
-    }
+    "scheduler" : {},
+    "optimizer_cls": optim.SGD,
+    "scheduler_cls": ExponentialLR,
+    "loss_cls": nn.CrossEntropyLoss,
+    "net_cls": pytorch_ML.networks.WRN_Regressor,
 }
 
 
 
-hyper = md.Hyperopt(model_path,max_iter = 250000,iter_chunk_size = 100,dt= dt,model_cls= IOU_Discriminator_Sig_MSE,optimizer_cls= optim.SGD,scheduler_cls= ReduceLROnPlateau,loss_cls= nn.MSELoss,output_dir=os.path.join(model_path,"MSE_net"), bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 180,dt_wts = weights)
+hyper = md.Hyperopt(model_path,max_iter = 250000,iter_chunk_size = 100,dt= dt,model_cls= IOU_Discriminator_01,optimizer_cls= optim.SGD,scheduler_cls= ReduceLROnPlateau,loss_cls= nn.MSELoss,output_dir=os.path.join(model_path,"classi_net"), bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 180,dt_wts = weights)
 hyper.hyperopt()
 #net = IOU_Discriminator(device=device)
 #optimizer = optim.SGD(net.parameters(),lr = 0.05,momentum=0.23,nesterov= True)
@@ -68,5 +70,4 @@ hyper.hyperopt()
 #trainer = md.Trainer_Save_Best(net=net,dt=dt, optimizer = optimizer, scheduler = scheduler, loss_fun =loss_fun , max_iter=3000, output_dir ='/pers_files/mask_models_pad_mask19/model49/trained', eval_period=150, print_period=50,bs=3,
  #                              dt_val=dt_val, dt_wts=weights, fun_val=fun_val, val_nr=None, add_max_iter_to_loaded=False)
 #trainer.train()
-
 

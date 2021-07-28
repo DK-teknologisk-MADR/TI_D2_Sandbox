@@ -32,6 +32,7 @@ class FChead(nn.Module):
 
     def forward(self,x):
         x = self.nn_seq.forward(x)
+
         return x
 
 class IOU_Discriminator_Only_Mask(nn.Module):
@@ -67,6 +68,8 @@ class IOU_Discriminator(nn.Module):
         return x
 
 
+
+
 class IOU_Discriminator_Sig_MSE(IOU_Discriminator):
     def __init__(self, device='cuda:0'):
         super(IOU_Discriminator_Sig_MSE, self).__init__(device = device)
@@ -78,6 +81,31 @@ class IOU_Discriminator_Sig_MSE(IOU_Discriminator):
         return x
 
 
+class IOU_Discriminator_01(nn.Module):
+    def __init__(self,backbone = None, device='cuda:0'):
+        '''
+        needs to be a backbone whose first layer is "conv1" which we replaces to have 4 channels.
+        Such as all resnet and wide_resnets
+        '''
+        if backbone is None:
+            backbone = wide_resnet50_2(True)
+        weight = backbone.conv1.weight.clone()
+        backbone.conv1 = nn.Conv2d(4, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+        backbone.fc = nn.Identity()
+        with torch.no_grad():
+            backbone.conv1.weight[:, :3] = weight
+        fcHead = FChead(dims=[2048, 2048,1],dropout_ps = [0.1,0.1], device=device)
+        super(IOU_Discriminator_01, self).__init__()
+        self.model = Backbone_And_Fc_Head(backbone, fcHead, device)
+        self.sigmoid =nn.Sigmoid()
+        self.device = device
+        self.to(self.device)
+
+    def forward(self, x):
+        x = self.model.forward(x)
+        if not self.training: #if eval mode
+            x = self.sigmoid(x)
+        return x
 
 
 class Backbone_And_Fc_Head(nn.Module):
@@ -103,6 +131,7 @@ class WRN_Regressor(Backbone_And_Fc_Head):
     def __init__(self,output_dim = 1,last_activ = None,pretrained  = True, device = 'cuda:0'):
         '''
         Pure wide resnet 50 with last output changed to 2048-> output_dim and last_activ activation function.
+        WARNING: Meant to be used with either
         '''
         if last_activ is None:
             last_activ = nn.Identity()
@@ -115,30 +144,55 @@ class WRN_Regressor(Backbone_And_Fc_Head):
     def forward(self,x):
         return super(WRN_Regressor,self).forward(x)
 
-# tester = WRN_Regressor(output_dim=10)
+
+#TODO::make test that torch.jit.scripts everything.
+
+# tester = IOU_Discriminator_01()
 # tester.eval()
 # time1 = time()
+# x = torch.randn(5,4,300,600).to('cuda')
 # with torch.no_grad():
-#     print("result is", tester(torch.randn(1,3,280,280).to('cuda')))
+#     print("result is", tester(x),"with raw model")
 #     time2 = time()-time1
 #     print(time2)
-#     tester_model = torch.jit.trace(tester,torch.randn(1,3,280,280).to('cuda'))
+#     tester_model = torch.jit.script(tester)
 #     time1 = time()
-#     print("result is", tester_model(torch.randn(1,3,280,280).to('cuda')))
+#     print("result is", tester_model(x))
 #     time2 = time()-time1
 #     print(time2)
 #     time1 = time()
-#     print("result is", tester_model(torch.randn(1,3,280,280).to('cuda')))
+#     print("result is", tester_model(x))
 #     time2 = time()-time1
+#     time1 = time()
 #     print(time2)
-#     print("result is", tester_model(torch.randn(1,3,280,280).to('cuda')))
+#     print("result is", tester_model(x))
 #     time2 = time()-time1
+#     time1 = time()
 #     print(time2)
-#     print("result is", tester_model(torch.randn(1,3,280,280).to('cuda')))
+#     print("result is", tester_model(x))
 #     time2 = time()-time1
+#     time1 = time()
 #     print(time2)
-#     print("result is", tester_model(torch.randn(1,3,280,280).to('cuda')))
+#     print("result is", tester_model(x))
 #     time2 = time()-time1
-# print(time2)
-# print(tester)
-# print(tester_model)
+#     time1 = time()
+#     print(time2)
+#     print("result is", tester_model(x))
+#     time2 = time()-time1
+#     time1 = time()
+#     print(time2)
+#     print("result is", tester_model(x))
+#     time2 = time()-time1
+#     time1 = time()
+#     print(time2)
+#     print("result is", tester_model(x))
+#     time2 = time()-time1
+#     time1 = time()
+#     print(time2)
+#     print("result is", tester_model(x))
+#     time2 = time()-time1
+#     time1 = time()
+#     print(time2)
+
+#print(tester)
+#print(tester_model)
