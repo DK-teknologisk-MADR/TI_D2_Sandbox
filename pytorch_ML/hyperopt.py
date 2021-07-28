@@ -188,7 +188,7 @@ base_params = {
     "scheduler" : {},
     "optimizer_cls": optim.SGD,
     "scheduler_cls": ExponentialLR,
-    "loss_cls": nn.CrossEntropyLoss,
+    "loss_cls": nn.BCEWithLogitsLoss,
     "net_cls": pytorch_ML.networks.WRN_Regressor,
     "net": {'output_dim': 10, 'last_activ': nn.Identity(), 'device': 'cuda'}
 
