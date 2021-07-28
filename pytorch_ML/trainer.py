@@ -144,20 +144,22 @@ class Trainer():
         val_loader = self.get_loader(self.dt_val, bs)
         total_loss = torch.tensor(0.0, device=self.gpu_id)
         instances_nr = torch.tensor(0, device='cpu')
+        results = []
         with torch.no_grad():
             for batch, targets in val_loader:
                 instances_nr += batch.shape[0]
                 batch = batch.to(self.gpu_id)
-                targets = targets.to(self.gpu_id)
+                targets = targets.to(self.gpu_id).float()
                 out = self.net(batch).flatten()
-                targets = targets.float()
-                total_loss += fun(out, targets)
+                
                 if instances_nr + 1 >= val_nr:
                     break
-        result = total_loss.to('cpu') / instances_nr
-        print("avg val value is " , result)
+        results = torch.cat(results,0) #dim i,j,: gives out if j= 0 and target if j = 1
+        score = fun(results)
+        print("score is " , score)
         self.net.train()
-        return result
+        return score
+
 
 
     def val_and_maybe_save(self,file_name):
