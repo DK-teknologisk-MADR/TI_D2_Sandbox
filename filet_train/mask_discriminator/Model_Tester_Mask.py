@@ -14,7 +14,7 @@ class Model_Tester_Mask(Model_Tester):
         super().__init__(net=net,path_to_save_file=path,device=device)
 
 
-    def get_evaluation(self,picture):
+    def get_evaluation(self,picture,need_sig = True):
         '''
         assumes CxHxW picture
         '''
@@ -25,7 +25,10 @@ class Model_Tester_Mask(Model_Tester):
         with torch.no_grad():
             if self.trs_x:
                 picture = self.trs_x_comp(picture)
-            res = sigmoid(self.net(picture))
+            out = self.net(picture)
+            if need_sig:
+                out = sigmoid(out)
+            res = out
         return res
 #move to script in the end:
 #-----------------------------

@@ -3,7 +3,7 @@ setup_logger()
 import numpy as np
 import cv2
 from filet_train.mask_discriminator.Model_Tester_Mask import Model_Tester_Mask
-from pytorch_ML.networks import IOU_Discriminator
+from pytorch_ML.networks import IOU_Discriminator,IOU_Discriminator_Sig_MSE
 from detectron2_ML.predictors import ModelTester
 import torch
 import torchvision
@@ -13,15 +13,17 @@ from torch.nn import Conv2d
 from detectron2.data import MetadataCatalog
 
 class Filet_ModelTester3(ModelTester):
-    def __init__(self, cfg_fp, chk_fp,mask_net_chk_fp, kpts_nr=21,object_area_thresh = 20000,iou_thresh = 0.92,n_biggest = 3,device = 'cuda:0',print_log = False, pad = 19, record_plots = False):
+    def __init__(self, cfg_fp, chk_fp,mask_net_chk_fp, kpts_nr=21,object_area_thresh = 20000,iou_thresh = 0.92,n_biggest = 3,device = 'cuda:0',print_log = False, pad = 19, record_plots = False,ph2_need_sig=True):
         super().__init__(cfg_fp=cfg_fp, chk_fp=chk_fp,device = device)
         self.print_log = print_log
         self.kpts_nr = kpts_nr
         net = IOU_Discriminator(device = device)
+        net = IOU_Discriminator_Sig_MSE(device = device)
         self.totensor = torchvision.transforms.ToTensor()
         self.object_area_thresh = object_area_thresh
         self.iou_thresh = 0.9
         self.h,self.w = 1024,1024
+        self.ph2_need_sig=ph2_need_sig
         self.n_biggest = n_biggest # how many should be checked
         if print_log: print("device is", device)
         tx = []
@@ -92,7 +94,7 @@ class Filet_ModelTester3(ModelTester):
                 img4d_resized = torchvision.transforms.functional.resize(img4d_full, resize_shape) #obj_nr x 4 x resize_shape
                 # pass im4d_resized through model 2
                 if self.print_log: print('PHASE2: resized img to ',resize_shape,"and inserting to discriminator")
-                pred_ious = self.model_tester_mask.get_evaluation(img4d_resized)
+                pred_ious = self.model_tester_mask.get_evaluation(img4d_resized,need_sig=self.ph2_need_sig)
                 if self.print_log: print("PHASE2: best instances had iou", print(pred_ious))
                 is_good_mask = pred_ious > self.iou_thresh
              #   print(is_good_mask)
@@ -159,7 +161,7 @@ class Filet_ModelTester3(ModelTester):
         offset_w_min = is_filet_col.argmax()
         offset_w_max = self.h - 1 - is_filet_col.flip(0).argmax()
         mask = full_mask[:,offset_w_min : offset_w_max]
-        print(mask.shape)
+        print("phase3: after offset we have mask shape",  mask.shape)
         h, w = mask.shape
         split_size = (w // self.kpts_nr)
         is_obj_thresh = split_size // 2
@@ -169,7 +171,7 @@ class Filet_ModelTester3(ModelTester):
         crop_left = to_crop // 2 + 1 if to_crop % 2 else to_crop // 2
         crop_right = to_crop // 2
         new_mask = mask[:,crop_left:w - crop_right]
-        print("new mask is", new_mask.shape)
+        print("Phase3: new mask is", new_mask.shape)
         split_ls = torch.split(new_mask, split_size, dim=1)
         splits_ts = torch.stack(split_ls).long()
         is_filet = (splits_ts.sum(dim=2) > is_obj_thresh).long()

@@ -114,7 +114,6 @@ class Filet_Seg_Dataset(Dataset):
                 json_file = os.path.join(self.data_dir,self.split,file)
             else:
                 pass
-
         pic_load = cv2.imread(mask_file, cv2.IMREAD_GRAYSCALE)
         pic_load = np.where(pic_load>255/2,1,0)
         if self.mask_only:
