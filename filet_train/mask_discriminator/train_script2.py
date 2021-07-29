@@ -24,16 +24,18 @@ iou_arr = np.array(list(iou_dict.values()))
 
 #move to script in the end:
 #-----------------------------
+
 def normalize_ious(iou_arr):
     r_vals = scipy.special.logit(iou_arr)
     normed_r = (iou_arr - iou_arr.mean()) / iou_arr.std()
     iou_normed = scipy.special.expit(normed_r)
     return iou_normed
 #-----------------------------
-
+normalize_ious(np.array([0.95]))
 
 #ty = [Normalize( mean=iou_arr.mean(), std=iou_arr.std())]
-tx = [Normalize( mean=[0.485, 0.456, 0.406,0.425], std=[0.229, 0.224, 0.225,0.226])]
+tx = [Normalize( mean=[0.485, 0.456, 0.406,0], std=[0.229, 0.224, 0.225,1])]
+
 dt = Filet_Seg_Dataset(data,iou_dict,data_dir,train_split,trs_x= tx , trs_y_bef=[normalize_ious],mask_only=False)
 dt_val = Filet_Seg_Dataset(data_val,iou_dict_val,data_dir,val_split,trs_x= tx,trs_y_bef=[normalize_ious],mask_only=False)
 ious = iou_arr #CHANGE TO DT
