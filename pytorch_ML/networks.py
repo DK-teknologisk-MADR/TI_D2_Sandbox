@@ -1,33 +1,45 @@
+from collections import OrderedDict
 import torch
+import numpy as np
 import torchvision.models
 from torchvision.models import wide_resnet50_2,resnet50
+from time import time
 import torch.nn as nn
+
 model = wide_resnet50_2(False)
 
-
 class FChead(nn.Module):
-    def __init__(self,dims,device):
-        super(FChead, self).__init__()
-        assert len(dims) == 4
-        self.dropout1 = nn.Dropout(0.25)
-        self.fc1 = nn.Linear(dims[0],dims[1])
-        self.dropout2 = nn.Dropout(0.25)
-        self.dropout3 = nn.Dropout(0.25)
-        self.relu = nn.ReLU()
-        self.fc2 = nn.Linear(dims[1],dims[2])
-        self.fcout = nn.Linear(dims[2],dims[3])
-    def forward(self,x):
-        x = self.relu(self.fc1(self.dropout1(x)))
-        x = self.relu(self.fc2(self.dropout2(x)))
-        x = self.fcout(self.dropout3(x))
-        return x
+    def __init__(self,dims,dropout_ps = None ,activ_ls = None,device='cuda:0'):
+        super().__init__()
+        '''
+        dims : list of length n+1 where dims[0] is input dim, dim[n] = output dim
+        dropout_ps : dropout probs. 0 means it should not be added
+        '''
+        layer_dict = [nn.Linear(dims[i],dims[i+1]) for i,dim in enumerate(dims[:-1])]
+        if dropout_ps is None:
+            dropout_ps = np.zeros(len(dims) - 1)
+        do_dict = [nn.Dropout(dropout_ps[i]) for i in range(len(dims) - 1) ]
+        if activ_ls is None:
+            activ_ls = [nn.ReLU() for _ in range(len(dims) - 2)]
+            activ_ls.append(nn.Identity())
+        nn_list = OrderedDict()
+        for i,layer in enumerate(layer_dict):
+            if dropout_ps[i]:
+                nn_list['dp' + str(i)] = do_dict[i]
+            nn_list['lin' + str(i)] = layer_dict[i]
+            nn_list['activ' + str(i)] = activ_ls[i]
+        self.nn_seq = nn.Sequential(nn_list)
 
+    def forward(self,x):
+        x = self.nn_seq.forward(x)
+
+        return x
 
 class IOU_Discriminator_Only_Mask(nn.Module):
     def __init__(self,device):
         super(IOU_Discriminator_Only_Mask, self).__init__()
         self.model_wide_res = wide_resnet50_2(False)
-        self.fchead = FChead(dims = [2048,400,400,1],device = device)
+        self.fchead = FChead(dims = [2048,400,400,1],dropout_ps= [0.2,0.2,0.2] ,device = device)
         self.model_wide_res.conv1 = nn.Conv2d(1, 64, kernel_size=(7,7), stride=(2,2), padding=(3,3), bias=False)
         self.device = device
     def forward(self,x):
@@ -37,12 +49,12 @@ class IOU_Discriminator_Only_Mask(nn.Module):
 
 
 class IOU_Discriminator(nn.Module):
-    def __init__(self,device = 'cuda:1'):
+    def __init__(self,device = 'cuda:0'):
         super(IOU_Discriminator, self).__init__()
         self.device = device
         self.model_wide_res = wide_resnet50_2(True)
         self.model_wide_res.fc = nn.Identity()
-        self.fchead = FChead(dims = [2048,400,400,1],device = device)
+        self.fchead = FChead(dims = [2048,400,400,1],dropout_ps= [0.2,0.2,0.2],device = device)
         weight = self.model_wide_res.conv1.weight.clone()
         self.model_wide_res.conv1 = nn.Conv2d(4, 64, kernel_size=(7,7), stride=(2,2), padding=(3,3), bias=False)
         with torch.no_grad():
@@ -56,8 +68,10 @@ class IOU_Discriminator(nn.Module):
         return x
 
 
+
+
 class IOU_Discriminator_Sig_MSE(IOU_Discriminator):
-    def __init__(self, device='cuda:1'):
+    def __init__(self, device='cuda:0'):
         super(IOU_Discriminator_Sig_MSE, self).__init__(device = device)
         self.sig = nn.Sigmoid()
 
@@ -67,15 +81,118 @@ class IOU_Discriminator_Sig_MSE(IOU_Discriminator):
         return x
 
 
+class IOU_Discriminator_01(nn.Module):
+    def __init__(self,backbone = None, device='cuda:0'):
+        '''
+        needs to be a backbone whose first layer is "conv1" which we replaces to have 4 channels.
+        Such as all resnet and wide_resnets
+        '''
+        if backbone is None:
+            backbone = wide_resnet50_2(True)
+        weight = backbone.conv1.weight.clone()
+        backbone.conv1 = nn.Conv2d(4, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+        backbone.fc = nn.Identity()
+        with torch.no_grad():
+            backbone.conv1.weight[:, :3] = weight
+        fcHead = FChead(dims=[2048, 2048,1],dropout_ps = [0.1,0.1], device=device)
+        super(IOU_Discriminator_01, self).__init__()
+        self.model = Backbone_And_Fc_Head(backbone, fcHead, device)
+        self.sigmoid =nn.Sigmoid()
+        self.device = device
+        self.to(self.device)
+
+    def forward(self, x):
+        x = self.model.forward(x)
+        if not self.training: #if eval mode
+            x = self.sigmoid(x)
+        return x
+
+
 class Backbone_And_Fc_Head(nn.Module):
-    def __init__(self,backbone = resnet50,fc_dims = (1024,300,300,1), device = 'cuda:1'):
+    def __init__(self,backbone = None,fcHead = None, device = 'cuda:0'):
         self.device = device
         super(Backbone_And_Fc_Head, self).__init__()
-        self.backbone = backbone(True)
-        self.fchead = FChead(dims = fc_dims,device = device)
+        if backbone is None:
+            self.backbone = resnet50(False)
+        else:
+            self.backbone = backbone
+        self.backbone.fc = nn.Identity()
+        self.fcHead = fcHead
         self.backbone.to(self.device)
+        self.fcHead.to(self.device)
         self.to(self.device)
+
     def forward(self,x):
         x = self.backbone.forward(x)
-        x = self.fchead(x)
+        x = self.fcHead.forward(x)
         return x
+
+class WRN_Regressor(Backbone_And_Fc_Head):
+    def __init__(self,output_dim = 1,last_activ = None,pretrained  = True, device = 'cuda:0'):
+        '''
+        Pure wide resnet 50 with last output changed to 2048-> output_dim and last_activ activation function.
+        WARNING: Meant to be used with either
+        '''
+        if last_activ is None:
+            last_activ = nn.Identity()
+        super().__init__(backbone = wide_resnet50_2(True), fcHead = FChead(dims = [2048,output_dim],activ_ls=[last_activ],device = device))
+        self.backbone.fc = nn.Identity()
+        self.device = device
+
+
+        self.to(self.device)
+    def forward(self,x):
+        return super(WRN_Regressor,self).forward(x)
+
+
+#TODO::make test that torch.jit.scripts everything.
+
+# tester = IOU_Discriminator_01()
+# tester.eval()
+# time1 = time()
+# x = torch.randn(5,4,300,600).to('cuda')
+# with torch.no_grad():
+#     print("result is", tester(x),"with raw model")
+#     time2 = time()-time1
+#     print(time2)
+#     tester_model = torch.jit.script(tester)
+#     time1 = time()
+#     print("result is", tester_model(x))
+#     time2 = time()-time1
+#     print(time2)
+#     time1 = time()
+#     print("result is", tester_model(x))
+#     time2 = time()-time1
+#     time1 = time()
+#     print(time2)
+#     print("result is", tester_model(x))
+#     time2 = time()-time1
+#     time1 = time()
+#     print(time2)
+#     print("result is", tester_model(x))
+#     time2 = time()-time1
+#     time1 = time()
+#     print(time2)
+#     print("result is", tester_model(x))
+#     time2 = time()-time1
+#     time1 = time()
+#     print(time2)
+#     print("result is", tester_model(x))
+#     time2 = time()-time1
+#     time1 = time()
+#     print(time2)
+#     print("result is", tester_model(x))
+#     time2 = time()-time1
+#     time1 = time()
+#     print(time2)
+#     print("result is", tester_model(x))
+#     time2 = time()-time1
+#     time1 = time()
+#     print(time2)
+#     print("result is", tester_model(x))
+#     time2 = time()-time1
+#     time1 = time()
+#     print(time2)
+
+#print(tester)
+#print(tester_model)

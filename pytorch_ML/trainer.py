@@ -4,6 +4,9 @@ import time
 from torch.utils.data.sampler import WeightedRandomSampler
 from torch.utils.data.dataloader import DataLoader
 import numpy as np
+from validators import worst_f1
+
+
 class Trainer():
     def __init__(self,dt,net, optimizer = None, scheduler = None,loss_fun = None, max_iter= 200, output_dir ="./trainer_output",eval_period=250, print_period=50,bs=4,dt_val = None,dt_wts = None,fun_val = None , val_nr = None,add_max_iter_to_loaded = False,gpu_id = 0):
         validation_stuff = [dt_val,eval_period,fun_val]
@@ -27,15 +30,13 @@ class Trainer():
         self.fun_val = fun_val
         self.val_nr = val_nr
         self.dt_wts = dt_wts
-        self.best_val_loss = float('inf')
-        self.val_loss_cur= float('inf')
+        self.best_val_score =-float('inf')
+        self.val_score_cur=-float('inf')
 
         self.net.to('cuda:'+str(self.gpu_id))
 
 
-    def choose_appropriate_lr_scheduler(self):
-        pass
-
+ 
     def get_loader(self,dt,bs,wts = None):
         if wts is None:
             wts = np.ones(len(dt))
@@ -68,18 +69,19 @@ class Trainer():
             self.itr = ckpt_dict['itr']
             if self.add_max_iter_to_loaded:
                 self.max_iter += self.itr
-            self.best_val_score = ckpt_dict['val_loss']
-            print(f"=> loaded checkpoint '{filepath}' (itr {self.itr}) with val_loss{ckpt_dict['val_loss']}")
+            self.best_val_score = ckpt_dict['val_score']
+            print(f"=> loaded checkpoint '{filepath}' (itr {self.itr}) with val score {ckpt_dict['val_score']}")
         else:
             print("=> no checkpoint found at '{}'".format(filepath))
 
 #        return ckpt_dict
 
     def train(self):
+        timer = 0
 #        print(torch.cuda.memory_summary(device=self.gpu_id))
         print("TRAINING TO ", self.max_iter)
         self.before_train()
-        val_loss = float('-inf')
+        val_score = float('-inf')
         done = False
         time_last = time.time()
         while not done:
@@ -88,7 +90,7 @@ class Trainer():
                 break
             train_dataloader = iter(self.get_loader(self.dt, self.bs,wts=self.dt_wts))
             for batch, targets in train_dataloader:
-                time_pt = time.time()
+                time_start = time.time()
                 batch = batch.to(self.gpu_id)
                 targets = targets.to(self.gpu_id)
                 with torch.set_grad_enabled(True):
@@ -98,19 +100,14 @@ class Trainer():
                     loss.backward()
                     self.optimizer.step()
                     self.optimizer.zero_grad()
+                time_end = time.time()
                 if self.itr % self.eval_period == 0 and self.itr > 0 :
-                    val_loss = self.validate(self.val_nr)
-                    self.net.train()
-                    self.scheduler.step(val_loss)
-                    self.val_loss_cur = val_loss.numpy()
-                    if self.best_val_loss>self.val_loss_cur:
-                        self.best_val_loss = self.val_loss_cur
-
+                    self.val_and_maybe_save('best_model.pth')
+                timer += time_end-time_start
                 # log
                 if self.itr % self.print_period == 0:
-                    time_pt = time.time()
-                    print_str = f"time  / iter {(time_pt - time_last) / self.print_period}, iter is {self.itr}, lr is {self.optimizer.param_groups[0]['lr']}, memory allocated is {torch.cuda.memory_allocated(self.gpu_id)}"
-                    time_last = time_pt
+                    print_str = f"time  / iter {timer / self.print_period}, iter is {self.itr}, lr is {self.optimizer.param_groups[0]['lr']}, memory allocated is {torch.cuda.memory_allocated(self.gpu_id)}"
+                    timer = 0
                     print(print_str)
 
 
@@ -123,19 +120,14 @@ class Trainer():
                     break
         self.after_train()
 
-        return self.best_val_loss
+        return self.best_val_score
 
     def before_train(self):
         pass
 
     def after_train(self):
-        val_loss = self.validate(self.val_nr)
-        self.net.train()
-        self.val_loss_cur = val_loss.numpy()
-        if self.best_val_loss > self.val_loss_cur:
-            self.best_val_loss = self.val_loss_cur
-            self.save_model(file_name=f"best_model.pth", to_save={'val_loss': self.best_val_loss})
-        self.save_model(file_name=f"checkpoint.pth",to_save={'val_loss' : self.best_val_loss})
+        self.val_and_maybe_save('best_model.pth')
+        self.save_model(file_name=f"checkpoint.pth",to_save={'val_score' : self.best_val_score})
 
     def before_step(self):
         pass
@@ -143,7 +135,9 @@ class Trainer():
     def after_step(self):
         pass
 
-    def validate(self,val_nr=None, bs = 4,fun = None):
+    def validate(self,val_nr=None, bs = 4,fun = None,aggregate_device = None):
+        if aggregate_device is None:
+            aggregate_device = 'cpu' #the device which fun wants input in
         if fun is None:
             fun = self.fun_val
         self.net.eval()
@@ -155,19 +149,49 @@ class Trainer():
         val_loader = self.get_loader(self.dt_val, bs)
         total_loss = torch.tensor(0.0, device=self.gpu_id)
         instances_nr = torch.tensor(0, device='cpu')
+        targets_ls = []
+        out_ls = []
         with torch.no_grad():
             for batch, targets in val_loader:
                 instances_nr += batch.shape[0]
                 batch = batch.to(self.gpu_id)
-                targets = targets.to(self.gpu_id)
-                out = self.net(batch).flatten()
-                targets = targets.float()
-                total_loss += fun(out, targets)
+                target_batch = targets.to(self.gpu_id).to(aggregate_device)
+                out_batch= self.net(batch).flatten().to(aggregate_device)
+                assert target_batch.shape == out_batch.shape # delete this when module is tested
+                targets_ls.append(target_batch)
+                out_ls.append(out_batch)
                 if instances_nr + 1 >= val_nr:
                     break
-        result = total_loss.to('cpu') / instances_nr
-        print("avg val value is " , result)
-        return result
+            targets = torch.cat(targets_ls,0)
+            outs = torch.cat(out_ls,0) #dim i,j,: gives out if j= 0 and target if j = 1
+            score = fun(outs,targets)
+            score.to('cpu')
+
+        print("validate: ran validation, and got score", score)
+        self.net.train()
+        return score
+
+
+
+
+    def val_and_maybe_save(self,file_name):
+        '''
+        -Perform validation
+        -update self.best_val_score
+        - saves to best_model if new model is better than the last
+        '''
+        val_score = self.validate(self.val_nr)
+        self.val_score_cur = val_score.numpy()
+        if self.best_val_score < self.val_score_cur:
+            self.best_val_score = self.val_score_cur
+            self.save_model(file_name=f"best_model.pth", to_save={'val_score': self.best_val_score})
+
+
+
+
+
+
+
 
 
 
@@ -175,12 +199,5 @@ class Trainer():
 class Trainer_Save_Best(Trainer):
     def __init__(self,**kwargs_to_trainer):
         super().__init__(**kwargs_to_trainer)
-        self.previous_best_loss = float('inf')
-
-    def after_step(self):
-        if self.itr % self.eval_period == 0:
-            print("checking if best<pervious",self.best_val_loss<self.previous_best_loss)
-            if self.best_val_loss<self.previous_best_loss:
-                self.save_model(file_name="best_model.pth",to_save={'val_loss' : self.best_val_loss})
-            self.previous_best_loss = self.best_val_loss
+        """deprecated, use normal trainer instead"""
 
