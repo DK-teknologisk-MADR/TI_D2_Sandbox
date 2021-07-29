@@ -4,6 +4,9 @@ import time
 from torch.utils.data.sampler import WeightedRandomSampler
 from torch.utils.data.dataloader import DataLoader
 import numpy as np
+from validators import worst_f1
+
+
 class Trainer():
     def __init__(self,dt,net, optimizer = None, scheduler = None,loss_fun = None, max_iter= 200, output_dir ="./trainer_output",eval_period=250, print_period=50,bs=4,dt_val = None,dt_wts = None,fun_val = None , val_nr = None,add_max_iter_to_loaded = False,gpu_id = 0):
         validation_stuff = [dt_val,eval_period,fun_val]
@@ -132,7 +135,9 @@ class Trainer():
     def after_step(self):
         pass
 
-    def validate(self,val_nr=None, bs = 4,fun = None):
+    def validate(self,val_nr=None, bs = 4,fun = None,aggregate_device = None):
+        if aggregate_device is None:
+            aggregate_device = 'cpu' #the device which fun wants input in
         if fun is None:
             fun = self.fun_val
         self.net.eval()
@@ -144,21 +149,28 @@ class Trainer():
         val_loader = self.get_loader(self.dt_val, bs)
         total_loss = torch.tensor(0.0, device=self.gpu_id)
         instances_nr = torch.tensor(0, device='cpu')
-        results = []
+        targets_ls = []
+        out_ls = []
         with torch.no_grad():
             for batch, targets in val_loader:
                 instances_nr += batch.shape[0]
                 batch = batch.to(self.gpu_id)
-                targets = targets.to(self.gpu_id).float()
-                out = self.net(batch).flatten()
-                
+                target_batch = targets.to(self.gpu_id).to(aggregate_device)
+                out_batch= self.net(batch).flatten().to(aggregate_device)
+                assert target_batch.shape == out_batch.shape # delete this when module is tested
+                targets_ls.append(target_batch)
+                out_ls.append(out_batch)
                 if instances_nr + 1 >= val_nr:
                     break
-        results = torch.cat(results,0) #dim i,j,: gives out if j= 0 and target if j = 1
-        score = fun(results)
-        print("score is " , score)
+            targets = torch.cat(targets_ls,0)
+            outs = torch.cat(out_ls,0) #dim i,j,: gives out if j= 0 and target if j = 1
+            score = fun(outs,targets)
+            score.to('cpu')
+
+        print("validate: ran validation, and got score", score)
         self.net.train()
         return score
+
 
 
 

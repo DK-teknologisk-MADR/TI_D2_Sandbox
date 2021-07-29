@@ -148,6 +148,30 @@ class Hyperopt():
         pass
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class StopByProgressHook():
     '''
     Classic early stop by tracking progress. Assumes that score can be obtained as (score,key) value from key "storage_key" from trainer storage.
