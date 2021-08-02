@@ -6,7 +6,7 @@ from pytorch_ML.Model_Tester import Model_Tester
 
 
 class Model_Tester_Mask(Model_Tester):
-    def __init__(self,net,path,trs_x = [],device='cuda:0'):
+    def __init__(self,net,path,trs_x = [],trs_y = [],device='cuda:0'):
         self.trs_x = trs_x
         if trs_x:
             self.trs_x_comp = transforms.Compose(trs_x)
@@ -26,10 +26,7 @@ class Model_Tester_Mask(Model_Tester):
             if self.trs_x:
                 picture = self.trs_x_comp(picture)
             out = self.net(picture)
-            if need_sig:
-                out = sigmoid(out)
-            res = out
-        return res
+        return out
 #move to script in the end:
 #-----------------------------
 def normalize_ious(arr):

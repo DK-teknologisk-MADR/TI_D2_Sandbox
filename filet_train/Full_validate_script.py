@@ -8,12 +8,15 @@ from detectron2_ML.data_utils import get_file_pairs
 seg_model_dir = "/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
 seg_model_fp = os.path.join(seg_model_dir,'best_model.pth')
 seg_model_cfg_fp = os.path.join(seg_model_dir,'cfg.yaml')
-discriminator_dir ="/pers_files/mask_models_pad_mask19/MSE_net/model225"
-tester = Filet_ModelTester3(seg_model_cfg_fp,seg_model_fp,os.path.join(discriminator_dir,"best_model.pth"),21,print_log=True,record_plots=True,device='cuda:1',ph2_need_sig=False)
+discriminator_dir ="/pers_files/mask_models_pad_mask19/classi_net/model125"
+pic_dim = 1024
+p2_crop_size = [[200, pic_dim - 200], [100, pic_dim - 100]]
+p2_resize_shape = (693,618)
+tester = Filet_ModelTester3(seg_model_cfg_fp,seg_model_fp,os.path.join(discriminator_dir,"best_model.pth"),21,p2_crop_size=p2_crop_size,p2_resize_shape = p2_resize_shape,print_log=True,record_plots=True,device='cuda:1',ph2_need_sig=False)
 base_dir = "/pers_files/Combined_final/Filet"
 split = 'val'
 os.listdir(base_dir)
-plot_dir = os.path.join(base_dir, "viz")
+plot_dir = os.path.join(base_dir, "viz_classi_net")
 os.makedirs(plot_dir, exist_ok=True)
 img_dir = os.path.join(base_dir,split)
 #df = pd.read_csv("/pers_files/mask_models_pad_mask19/MSE_net/" +  '/result.csv')

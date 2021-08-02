@@ -3,7 +3,7 @@ setup_logger()
 import numpy as np
 import cv2
 from filet_train.mask_discriminator.Model_Tester_Mask import Model_Tester_Mask
-from pytorch_ML.networks import IOU_Discriminator,IOU_Discriminator_Sig_MSE
+from pytorch_ML.networks import IOU_Discriminator,IOU_Discriminator_01
 from detectron2_ML.predictors import ModelTester
 import torch
 import torchvision
@@ -11,25 +11,28 @@ from torchvision.transforms import Normalize
 from detectron2.utils.visualizer import Visualizer
 from torch.nn import Conv2d
 from detectron2.data import MetadataCatalog
-
+from mask_discriminator.transformations import centralize_img_wo_crop
 class Filet_ModelTester3(ModelTester):
-    def __init__(self, cfg_fp, chk_fp,mask_net_chk_fp, kpts_nr=21,object_area_thresh = 20000,iou_thresh = 0.92,n_biggest = 3,device = 'cuda:0',print_log = False, pad = 19, record_plots = False,ph2_need_sig=False):
+    def __init__(self, cfg_fp, chk_fp, mask_net_chk_fp, p3_kpts_nr=21, p2_object_area_thresh = 20000, p2_iou_thresh = 0.92, p2_n_biggest = 3,p2_crop_size = None,p2_resize_shape = None , device ='cuda:0', print_log = False, pad = 19, record_plots = False, ph2_need_sig=False):
         super().__init__(cfg_fp=cfg_fp, chk_fp=chk_fp,device = device)
+        assert p2_resize_shape is not None
+        assert p2_crop_size is not None
         self.print_log = print_log
-        self.kpts_nr = kpts_nr
-        net = IOU_Discriminator(device = device)
-        net = IOU_Discriminator_Sig_MSE(device = device)
+        self.kpts_nr = p3_kpts_nr
+#        net = IOU_Discriminator(device = device)
+        net = IOU_Discriminator_01(device = device)
         self.totensor = torchvision.transforms.ToTensor()
-        self.object_area_thresh = object_area_thresh
+        self.object_area_thresh = p2_object_area_thresh
         self.iou_thresh = 0.9
         self.h,self.w = 1024,1024
+        self.p2_crop_size = p2_crop_size
+        self.p2_resize_shape = p2_resize_shape
         self.ph2_need_sig=ph2_need_sig
-        self.n_biggest = n_biggest # how many should be checked
-        if print_log: print("device is", device)
-        tx = []
+        self.n_biggest = p2_n_biggest # how many should be checked
+        if print_log: print("Filet Init :: device is", device)
+        tx = [Normalize(mean=[0.485, 0.456, 0.406, 0], std=[0.229, 0.224, 0.225, 1])]
         self.plt_img_dict = []
         self.record_plots = record_plots
-        tx = [Normalize(mean=[0.485, 0.456, 0.406, 0.425], std=[0.229, 0.224, 0.225, 0.226])]
         self.model_tester_mask = Model_Tester_Mask(net, mask_net_chk_fp,trs_x=tx,device=device)
         self.device = device
         self.conv = Conv2d(1, 1, (pad, pad), bias=False,padding=(pad//2,pad//2)).requires_grad_(False) #to be put in predictor class
@@ -80,21 +83,42 @@ class Filet_ModelTester3(ModelTester):
                 if self.print_log: print(" phase2 : all objects seems small")
             else:
                 biggest_objects = torch.argsort(areas, descending=True)
-                print(biggest_objects)
+                print("objects ordered after size are", biggest_objects)
                 big_masks = pred_masks[biggest_objects[0:self.n_biggest]].unsqueeze(1)
-                big_masks_padded = big_masks.long()
                 big_masks_padded = self.conv(big_masks.float())
-                big_masks_padded = big_masks.bool().long()
+                big_masks_padded = big_masks_padded.bool().long()
                 img_as_batch = img.unsqueeze(0)
                 masked_pic = big_masks_padded * img_as_batch
                 img4d_full = torch.cat([masked_pic, big_masks], dim=1)
+
+#------------------p2-preprocessing------------------------
+                masked_pic_cpu = masked_pic.to('cpu').permute(0,2,3,1).numpy()
+                big_masks_cpu = big_masks.to('cpu').permute(0,2,3,1).numpy()
+            #    print("got np arrays",masked_pic_cpu.shape,big_masks_cpu.shape)
+
+                masked_pic_cpu_cent = np.zeros_like(masked_pic_cpu)
+                big_masks_cpu_cent = np.zeros_like(big_masks_cpu)
+                for i in range(masked_pic_cpu.shape[0]):
+                    res ,translations , _ = centralize_img_wo_crop(masked_pic_cpu[i])
+                    masked_pic_cpu_cent[i] = res
+                    t_1,t_2 = translations
+                    T = np.float32([[1, 0, t_1], [0, 1, t_2]])
+                    res = cv2.warpAffine(big_masks_cpu[i].squeeze(2), T, (self.w, self.h))
+                    big_masks_cpu_cent[i] = res[:,:,None]
+#                   cv2.imshow("winz",big_masks_cpu_cent[i])
+#                    cv2.waitKey()
+
+                masked_pic = torch.tensor(masked_pic_cpu_cent,requires_grad=False,device=self.device).permute(0,3,1,2)
+                big_masks = torch.tensor(big_masks_cpu_cent,requires_grad=False,device=self.device).permute(0,3,1,2)
+# ------------------p2-preprocessing------------------------
+                img4d_to_eval = torch.cat([masked_pic, big_masks], dim=1)
+                #print(masked_pic.shape,big_masks.shape)
              #   print("img4d has size", img4d_full.shape)
- #               img4d = img4d_full[:, :, h_low: h_high, w_low: w_high]
-                resize_shape = 618, 768
-                img4d_resized = torchvision.transforms.functional.resize(img4d_full, resize_shape) #obj_nr x 4 x resize_shape
+                img4d_to_eval = img4d_to_eval[:,:,self.p2_crop_size[0][0]:self.p2_crop_size[0][1],self.p2_crop_size[1][0]:self.p2_crop_size[1][1]]
+                img4d_resized = torchvision.transforms.functional.resize(img4d_to_eval, self.p2_resize_shape) #obj_nr x 4 x resize_shape
                 # pass im4d_resized through model 2
-                if self.print_log: print('PHASE2: resized img to ',resize_shape,"and inserting to discriminator")
-                pred_ious = self.model_tester_mask.get_evaluation(img4d_resized,need_sig=self.ph2_need_sig)
+                if self.print_log: print('PHASE2: resized img to ',self.p2_resize_shape,"and inserting to discriminator")
+                pred_ious = self.model_tester_mask.get_evaluation(img4d_resized)
                 if self.print_log: print("PHASE2: best instances had iou", print(pred_ious))
                 is_good_mask = pred_ious > self.iou_thresh
              #   print(is_good_mask)
@@ -140,7 +164,7 @@ class Filet_ModelTester3(ModelTester):
                     # Using cv2.putText() method
              #       print(pred_iou.to('cpu').numpy())
                     pred_iou_str = "{:.2f}".format(float(pred_iou.to('cpu').numpy()))
-                    string = f"p_iou = {pred_iou_str}"
+                    string = f"pred_score = {pred_iou_str}"
                     img_plt = cv2.putText(img_plt, string, org, font,
                                         fontScale, color, thickness, cv2.LINE_AA)
 

@@ -191,8 +191,4 @@ def try_script_model(model,sample_shape,device = 'cuda:0',reps = 20,tolerance = 
 #TODO::make test that torch.jit.scripts everything.
 
 
-time1 = time()
-print(torch.cuda.memory_summary())
-#x = torch.randn(5,4,300,600).to('cuda')
-tester = None
-try_script_model(tester,(3,4,300,300))
+#try_script_model(tester,(3,4,300,300))

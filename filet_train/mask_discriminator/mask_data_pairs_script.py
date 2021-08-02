@@ -15,7 +15,7 @@ import numpy as np
 matplotlib.use('TkAgg')
 torch.cuda.device(0)
 from detectron2_ML.predictors import ModelTester #from filet_train.Filet_kpt_Predictor import Filet_ModelTester
-
+import numba
 device = 'cuda:0'
 data_dir = '/pers_files/Combined_final/Filet'
 base_dir = "/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
@@ -57,39 +57,6 @@ def get_file_pairs_2021(data_dir,split):
     return data_pairs_2021
 split = 'train'
 
-
-
-def centralize_img_wo_crop(img,fixed_translation = None):
-    non_zero_coords = np.array(np.nonzero(img))
-    height, width = img.shape[:2]
-    flag = False
-
-    if fixed_translation is None:
-        center = non_zero_coords.mean(axis=1)
-        h_min,w_min = non_zero_coords.min(axis=1)[:2]
-        h_max,w_max = non_zero_coords.max(axis=1)[:2]
-        t_1 = width // 2-center[1]
-        t_2 = height // 2-center[0]
-        if t_1 + w_min<0:
-            t_1 = 0
-            flag = True
-        elif t_1+w_max>width:
-            t_1 = width-w_max
-            flag = True
-
-        if t_2 + h_min < 0:
-            t_2 = 0
-            flag = True
-
-        elif t_2 + h_max > height:
-            t_2 = height - h_max
-            flag = True
-    else:
-        t_1,t_2 = fixed_translation
-
-    T = np.float32([[1, 0, t_1], [0, 1, t_2]])
-    img_translation = cv2.warpAffine(img, T, (width, height))
-    return img_translation,(t_1,t_2),flag
 
 
 crop_dim = [[0,pic_dim],[0,pic_dim]]#crop_dim = [[200,pic_dim-200],[0,pic_dim]]
