@@ -4,7 +4,7 @@ import time
 from torch.utils.data.sampler import WeightedRandomSampler
 from torch.utils.data.dataloader import DataLoader
 import numpy as np
-from validators import worst_f1
+from pytorch_ML.validators import worst_f1
 
 
 class Trainer():
@@ -13,6 +13,7 @@ class Trainer():
         #validation_variables = {'dt_val' : dt_val, 'eval_period' : eval_period, 'fun_val' : fun_val}
         val_nones = [x is None for x in validation_stuff]
         assert all(val_nones) or not any(val_nones) , "some val variables seems to be none while some are not"
+
         self.net = net
         self.optimizer = optimizer
         self.scheduler = scheduler
@@ -100,6 +101,7 @@ class Trainer():
                     loss.backward()
                     self.optimizer.step()
                     self.optimizer.zero_grad()
+                    self.scheduler.step()
                 time_end = time.time()
                 if self.itr % self.eval_period == 0 and self.itr > 0 :
                     self.val_and_maybe_save('best_model.pth')
@@ -127,7 +129,7 @@ class Trainer():
 
     def after_train(self):
         self.val_and_maybe_save('best_model.pth')
-        self.save_model(file_name=f"checkpoint.pth",to_save={'val_score' : self.best_val_score})
+        self.save_model(file_name=f"checkpoint.pth",to_save={'val_score' : self.val_score_cur})
 
     def before_step(self):
         pass

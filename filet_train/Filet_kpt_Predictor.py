@@ -13,7 +13,7 @@ from torch.nn import Conv2d
 from detectron2.data import MetadataCatalog
 
 class Filet_ModelTester3(ModelTester):
-    def __init__(self, cfg_fp, chk_fp,mask_net_chk_fp, kpts_nr=21,object_area_thresh = 20000,iou_thresh = 0.92,n_biggest = 3,device = 'cuda:0',print_log = False, pad = 19, record_plots = False,ph2_need_sig=True):
+    def __init__(self, cfg_fp, chk_fp,mask_net_chk_fp, kpts_nr=21,object_area_thresh = 20000,iou_thresh = 0.92,n_biggest = 3,device = 'cuda:0',print_log = False, pad = 19, record_plots = False,ph2_need_sig=False):
         super().__init__(cfg_fp=cfg_fp, chk_fp=chk_fp,device = device)
         self.print_log = print_log
         self.kpts_nr = kpts_nr

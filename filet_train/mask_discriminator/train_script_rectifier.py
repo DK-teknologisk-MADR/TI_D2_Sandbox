@@ -49,13 +49,16 @@ def rectify_ious(iou_arr):
     iou_normed = np.where(iou_normed<0.90,0,iou_normed)
     iou_normed = np.where(np.logical_and(iou_normed>0.90, iou_normed < 0.95) ,iou_normed * 20 - 18,iou_normed)
     return iou_normed
-iou_normed = rectify_ious(iou_arr)
+#iou_normed = rectify_ious(iou_arr)
 #-----------------------------
 #ty = [Normalize( mean=iou_arr.mean(), std=iou_arr.std())]
 tx = [Normalize( mean=[0.485, 0.456, 0.406,0], std=[0.229, 0.224, 0.225,1])]
 
-dt = Filet_Seg_Dataset(data,iou_dict,data_dir,train_split,trs_x= tx , trs_y_bef=[normalize_ious],mask_only=False)
-dt_val = Filet_Seg_Dataset(data_val,iou_dict_val,data_dir,val_split,trs_x= tx,trs_y_bef=[normalize_ious],mask_only=False)
+
+dt = Filet_Seg_Dataset(data,iou_dict,data_dir,train_split,trs_x= tx , trs_y_bef=[rectify_ious],mask_only=False)
+dt_val = Filet_Seg_Dataset(data_val,iou_dict_val,data_dir,val_split,trs_x= tx,trs_y_bef=[rectify_ious],mask_only=False)
+dt[4]
+
 ious = iou_arr #CHANGE TO DT
 #st_inds = np.argsort(ious)
 #qs = np.arange(0.04,1.0,0.04)[:6]
@@ -82,7 +85,7 @@ base_params = {
 }
 model_path = os.path.join("/pers_files/mask_models_pad_mask19")
 os.makedirs(os.path.join(model_path,"classi_net"),exist_ok=True)
-hyper = md.Hyperopt(base_path=model_path,max_iter = 250000,iter_chunk_size = 100,dt= dt,output_dir=os.path.join(model_path,"classi_net"),val_nr=50, bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 180,dt_wts = None,fun_val=f1_score)
+hyper = md.Hyperopt(base_path=model_path,max_iter = 250000,iter_chunk_size = 100,dt= dt,output_dir=os.path.join(model_path,"classi_net"),val_nr=None, bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 180,dt_wts = None,fun_val=f1_score)
 hyper.hyperopt()
 #hyper = md.Hyperopt(model_path,max_iter = 250000,iter_chunk_size = 100,dt= dt,model_cls= IOU_Discriminator,optimizer_cls= optim.SGD,scheduler_cls= ReduceLROnPlateau,loss_cls= nn.BCEWithLogitsLoss,output_dir=model_path, bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 180,dt_wts = weights)
 

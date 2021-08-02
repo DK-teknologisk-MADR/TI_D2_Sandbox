@@ -6,7 +6,7 @@ from torchvision.models import wide_resnet50_2,resnet50
 from time import time
 import torch.nn as nn
 
-model = wide_resnet50_2(False)
+#model = wide_resnet50_2(False)
 
 class FChead(nn.Module):
     def __init__(self,dims,dropout_ps = None ,activ_ls = None,device='cuda:0'):
@@ -82,7 +82,7 @@ class IOU_Discriminator_Sig_MSE(IOU_Discriminator):
 
 
 class IOU_Discriminator_01(nn.Module):
-    def __init__(self,backbone = None, device='cuda:0'):
+    def __init__(self,backbone = None,two_layer_head = True, device='cuda:0'):
         '''
         needs to be a backbone whose first layer is "conv1" which we replaces to have 4 channels.
         Such as all resnet and wide_resnets
@@ -94,7 +94,11 @@ class IOU_Discriminator_01(nn.Module):
         backbone.fc = nn.Identity()
         with torch.no_grad():
             backbone.conv1.weight[:, :3] = weight
-        fcHead = FChead(dims=[2048, 2048,1],dropout_ps = [0.1,0.1], device=device)
+        if two_layer_head:
+            fcHead = FChead(dims=[2048, 1024,1],dropout_ps = [0,0.1], device=device)
+        else:
+            fcHead = FChead(dims=[2048,1], device=device)
+
         super(IOU_Discriminator_01, self).__init__()
         self.model = Backbone_And_Fc_Head(backbone, fcHead, device)
         self.sigmoid =nn.Sigmoid()
@@ -145,54 +149,50 @@ class WRN_Regressor(Backbone_And_Fc_Head):
         return super(WRN_Regressor,self).forward(x)
 
 
+def try_script_model(model,sample_shape,device = 'cuda:0',reps = 20,tolerance = 1e-7):
+
+    model = IOU_Discriminator_01()
+    model.eval()
+    model_jit  = torch.jit.script(model)
+
+    results = []
+    burn_in = reps//2
+    timings_raw = np.zeros(reps-burn_in)
+    timings_jit = np.zeros(reps-burn_in)
+
+
+    for i in range(reps):
+        with torch.no_grad():
+            x = torch.randn(sample_shape,requires_grad=False,device=device)
+            timeBegin = time()
+            y_raw = model(x)
+            time_end = time()-timeBegin
+            if i>=burn_in:
+              timings_raw[i-burn_in] = time_end
+            timeBegin = time()
+            y_jit = model_jit(x)
+            time_end = time() - timeBegin
+            if i>=burn_in:
+                timings_jit[i-burn_in] = time_end
+            results.append(torch.abs(y_raw-y_jit))
+        result_ts = torch.vstack(results)
+        result_ts = result_ts.mean(axis=0)
+    if torch.all( result_ts< tolerance):
+        print("try_script_model:: succesfully  jitted  model")
+        print(f"try_script_model::average timings based on {reps-burn_in} trials: raw : {timings_raw.mean():3f}, jit : {timings_jit.mean():3f}")
+        return model_jit , True
+    else:
+        print("try_script_model:: failed model jit model")
+        return model , False
+
+
+
+
 #TODO::make test that torch.jit.scripts everything.
 
-# tester = IOU_Discriminator_01()
-# tester.eval()
-# time1 = time()
-# x = torch.randn(5,4,300,600).to('cuda')
-# with torch.no_grad():
-#     print("result is", tester(x),"with raw model")
-#     time2 = time()-time1
-#     print(time2)
-#     tester_model = torch.jit.script(tester)
-#     time1 = time()
-#     print("result is", tester_model(x))
-#     time2 = time()-time1
-#     print(time2)
-#     time1 = time()
-#     print("result is", tester_model(x))
-#     time2 = time()-time1
-#     time1 = time()
-#     print(time2)
-#     print("result is", tester_model(x))
-#     time2 = time()-time1
-#     time1 = time()
-#     print(time2)
-#     print("result is", tester_model(x))
-#     time2 = time()-time1
-#     time1 = time()
-#     print(time2)
-#     print("result is", tester_model(x))
-#     time2 = time()-time1
-#     time1 = time()
-#     print(time2)
-#     print("result is", tester_model(x))
-#     time2 = time()-time1
-#     time1 = time()
-#     print(time2)
-#     print("result is", tester_model(x))
-#     time2 = time()-time1
-#     time1 = time()
-#     print(time2)
-#     print("result is", tester_model(x))
-#     time2 = time()-time1
-#     time1 = time()
-#     print(time2)
-#     print("result is", tester_model(x))
-#     time2 = time()-time1
-#     time1 = time()
-#     print(time2)
 
-#print(tester)
-#print(tester_model)
+time1 = time()
+print(torch.cuda.memory_summary())
+#x = torch.randn(5,4,300,600).to('cuda')
+tester = None
+try_script_model(tester,(3,4,300,300))

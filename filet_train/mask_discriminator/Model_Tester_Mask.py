@@ -14,7 +14,7 @@ class Model_Tester_Mask(Model_Tester):
         super().__init__(net=net,path_to_save_file=path,device=device)
 
 
-    def get_evaluation(self,picture,need_sig = True):
+    def get_evaluation(self,picture,need_sig = False):
         '''
         assumes CxHxW picture
         '''
@@ -33,8 +33,8 @@ class Model_Tester_Mask(Model_Tester):
 #move to script in the end:
 #-----------------------------
 def normalize_ious(arr):
-    x0 = 0.8
-    x1 = 0.94
+    x0 = 0.9
+    x1 = 0.95
     arr = (arr - x0) * 1/(x1-x0)
     return np.where(arr<0,0,
              np.where(arr>1,1,arr))

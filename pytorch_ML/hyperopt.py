@@ -7,9 +7,10 @@ from detectron2_ML.pruners import SHA
 import pandas as pd
 import os
 import torch.nn as nn
+import random
 import torch.optim as optim
 from pytorch_ML.trainer import Trainer
-
+from validators import f1_score
 #matplotlib.use('TkAgg')
 #model_resnet = resnet101(True).to(compute_device)
 compute_device = "cuda:0"
@@ -20,6 +21,7 @@ def set_device(device):
 
 class Hyperopt():
     def __init__(self,base_path, max_iter, dt, iter_chunk_size ,output_dir,bs = 4,base_params = {},dt_val = None,eval_period = 250,dt_wts = None, val_nr = None,fun_val = None):
+        assert fun_val is not None , "please supply a fun val"
         self.base_path = base_path
         self.max_iter = max_iter
         self.bs = bs
@@ -47,8 +49,9 @@ class Hyperopt():
             "optimizer" : { "lr": uniform(0.0005, 0.1) , "momentum": uniform(0.1, 0.6)},
             "scheduler" : {'gamma' : None},
             "loss" : {},
+            "net" : {'two_layer_head' : random.random()>0.5},
         }
-        lr_half_time = uniform(150, 2000)
+        lr_half_time = uniform(200, 4000)
         generated_values['scheduler']["gamma"] = np.exp(-np.log(2)/lr_half_time)
         return generated_values
 
@@ -61,15 +64,12 @@ class Hyperopt():
         optimizer = hyper["optimizer_cls"](net.parameters(),**hyper["optimizer"])
         scheduler = hyper["scheduler_cls"](optimizer,**hyper["scheduler"])
         loss_fun = hyper['loss_cls'](**hyper['loss'])
-        if self.fun_val is None:
-            self.fun_val = lambda x: - loss_fun(x)
         fun_val = self.fun_val
         hyper_objs = {
             'optimizer' : optimizer,
             'scheduler' : scheduler,
             'loss_fun' : loss_fun,
             'net' : net,
-            'fun_val' : fun_val
         }
         return hyper_objs
 
@@ -115,11 +115,11 @@ class Hyperopt():
         pruned = []
         done = False
         while not done:
-            val_loss = self.resume_or_initiate_train(model_dir= paths[trial_id_cur],max_iter= self.iter_chunk_size * self.pruner.get_cur_res(), hyper = hyper_vals[trial_id_cur], bs=4)
-            self.result_df.loc[trial_id_cur,'val_score'] = -val_loss
-            trial_id_cur, pruned, done = self.pruner.report_and_get_next_trial(-val_loss)
+            score = self.resume_or_initiate_train(model_dir= paths[trial_id_cur],max_iter= self.iter_chunk_size * self.pruner.get_cur_res(), hyper = self.hyper_vals[trial_id_cur], bs=4)
+            self.result_df.loc[trial_id_cur,'val_score'] = score
+            trial_id_cur, pruned, done = self.pruner.report_and_get_next_trial(float(score))
             print("Hyperopt : trial sprint completed for ID",trial_id_cur,". rung is ",self.pruner.rung_cur)
-            print("Hyperopt : result of this sprint was",val_loss )
+            print("Hyperopt : result of this sprint was",score )
             print("Hyperopt : .........results are................")
             self.result_df.loc[pruned,'pruned'] = True
             self.after_prune()
@@ -138,7 +138,7 @@ class Hyperopt():
             except Exception as e:
                 print(e)
         try:
-            score = trainer.train()
+           score = trainer.train()
         except ValueError:
             score = -float('inf')
         return score
@@ -204,20 +204,7 @@ class StopByProgressHook():
             self.should_stop = False
         return is_best , self.should_stop
 
-model_path = "~/Pyscripts/test_folder"
-base_params = {
-    "optimizer": {
-        'nesterov' : True,
-    },
-    "scheduler" : {},
-    "optimizer_cls": optim.SGD,
-    "scheduler_cls": ExponentialLR,
-    "loss_cls": nn.BCEWithLogitsLoss,
-    "net_cls": pytorch_ML.networks.WRN_Regressor,
-    "net": {'output_dim': 10, 'last_activ': nn.Identity(), 'device': 'cuda'}
-
-}
 
 
-hyper = Hyperopt(None,max_iter = 250000,iter_chunk_size = 100,dt= None,output_dir=os.path.join(model_path,"classi_net"), bs = 3,base_params= base_params,dt_val = None,eval_period = 180,dt_wts = None)
+#hyper = Hyperopt(None,max_iter = 250000,iter_chunk_size = 100,dt= None,output_dir=os.path.join(model_path,"classi_net"), bs = 3,base_params= base_params,dt_val = None,eval_period = 180,dt_wts = None)
 
