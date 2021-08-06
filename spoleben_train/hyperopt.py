@@ -1,24 +1,26 @@
 import os , shutil , json
 from copy import deepcopy
 from numpy.random import choice, randint,uniform
-from trainers import TI_Trainer
+from detectron2_ML.trainers import TI_Trainer
 from detectron2.config import get_cfg
 from detectron2 import model_zoo
 from detectron2.data import DatasetMapper, build_detection_train_loader
 import detectron2.data.transforms as T
 from detectron2.evaluation import COCOEvaluator
-from pruners import SHA
-from trainers import TrainerPeriodicEval
-from hyperoptimization import D2_hyperopt_Base
+from detectron2_ML.pruners import SHA
+from detectron2_ML.trainers import TrainerPeriodicEval
+from detectron2_ML.hyperoptimization import D2_hyperopt_Base
 from numpy import random
-from data_utils import get_data_dicts, register_data
+from detectron2_ML.data_utils import get_data_dicts, register_data , get_file_pairs
+from spoleben_train.data_utils import get_data_dicts_masks,sort_by_prefix
 
 splits = ['train','val']
-data_dir = "/pers_files/test_set"
-COCO_dicts = {split: get_data_dicts(data_dir,split) for split in splits } #converting TI-annotation of pictures to COCO annotations.
-data_names = register_data('filet',['train','val'],COCO_dicts,{'thing_classes' : ['filet']}) #register data by str name in D2 api
+data_dir = "/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)"
+file_pairs = { split : get_file_pairs(data_dir,split,sorted=True) for split in splits }
+COCO_dicts = {split: get_data_dicts_masks(data_dir,split,file_pairs[split]) for split in splits } #converting TI-annotation of pictures to COCO annotations.
+data_names = register_data('filet',['train','val'],COCO_dicts,{'thing_classes' : ['spoleben']}) #register data by str name in D2 api
 output_dir = f'{data_dir}/output'
-print(data_names)
+
 
 
 def initialize_base_cfg(model_name,cfg=None):
@@ -39,11 +41,13 @@ def initialize_base_cfg(model_name,cfg=None):
     cfg.OUTPUT_DIR = f'{output_dir}/{model_name}_output'
     cfg.SOLVER.BASE_LR = 0.00025
     cfg.SOLVER.MAX_ITER = 500
+    cfg.INPUT.MASK_FORMAT = "bitmask"
+
     cfg.SOLVER.STEPS = [] #cfg.SOLVER.STEPS = [2000,4000] would decay LR by cfg.SOLVER.GAMMA at steps 2000,4000
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 64  #(default: 512)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
     #might as well make sure output_dir exists
-    os.makedirs(f'{output_dir}/{model_name}_output',exist_ok=False)
+    os.makedirs(f'{output_dir}/{model_name}_output',exist_ok=True)
     return cfg
 
 #example input
@@ -70,63 +74,14 @@ class D2_hyperopt(D2_hyperopt_Base):
             shutil.rmtree(self.get_trial_output_dir(trial_id))
 
 
-task = 'bbox'
+task = 'segm'
 evaluator = COCOEvaluator(data_names['val'],("bbox", "segm"), False,cfg.OUTPUT_DIR)
 
 #hyperoptimization object that uses model_dict to use correct model, and get all hyper-parameters.
 #optimized after "task" as computed by "evaluator". The pruner is (default) SHA, with passed params pr_params.
 #number of trials, are chosen so that the maximum total number of steps does not exceed max_iter.
 
-hyp = D2_hyperopt(model_name,cfg_base=cfg,data_val_name = data_names['val'],trainer_cls=TI_Trainer,task=task,evaluator=evaluator,step_chunk_size=10,output_dir=output_dir,pruner_cls=SHA,max_iter = 350)
+hyp = D2_hyperopt(model_name,cfg_base=cfg,data_val_name = data_names['val'],trainer_cls=TI_Trainer,task=task,evaluator=evaluator,step_chunk_size=150,output_dir=output_dir,pruner_cls=SHA,max_iter = 35000)
 best_models = hyp.start()
 #returns pandas object
 print(best_models)
-
-
-#-----------------------------
-#example of a training procedure
-class TrainerWithMapper(TI_Trainer):
-    '''
-    Example of a trainer that applies argumentations at runtime. Argumentations available can be found here:
-    https://detectron2.readthedocs.io/en/latest/modules/data_transforms.html
-    '''
-    def __init__(self,augmentations,**params_to_DefaultTrainer):
-        super().__init__(**params_to_DefaultTrainer)
-        self.augmentations=augmentations
-
-    #overwrites default build_train_loader
-    @classmethod
-    def build_train_loader(cls, cfg):
-          mapper = DatasetMapper(cfg, is_train=True, augmentations=augmentations)
-          return build_detection_train_loader(cfg,mapper=mapper)
-
-augmentations = [
-          T.RandomCrop('relative_range',[0.9,0.9]),
-          T.RandomFlip(prob=0.5, horizontal=True, vertical=False),
-          T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
-          T.RandomRotation(angle = [-5,5], expand=True, center=None, sample_style='range'),
-          T.RandomBrightness(0.85,1.15)
-              ]
-
-#trainer = TrainerWithMapper(augmentations = augmentations,cfg=cfg)
-#trainer.resume_or_load(resume=True)
-#trainer.train()
-
-#--------------------------------------------
-
-
-#example of training with periodic evaluation
-cfg.DATASETS.TEST = (data_names['val'],)
-cfg.TEST.EVAL_PERIOD = 10
-class TrainerWithEval(TrainerWithMapper):
-
-    @classmethod
-    def build_evaluator(cls,cfg,dataset_name,output_folder=None):
-        if output_folder is None:
-            output_folder = cfg.OUTPUT_DIR
-        return COCOEvaluator(dataset_name, ('bbox', 'segm'), False, output_dir=output_folder)
-
-#if argumentations are not neccesary, one does not need subclass
-#trainer = TrainerWithMapper(cfg)
-#trainer.resume_or_load(resume=True)
-#trainer.train()

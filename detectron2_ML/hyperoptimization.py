@@ -1,10 +1,10 @@
 import os
 from detectron2.data import build_detection_test_loader
-from trainers import TI_Trainer
+from detectron2_ML.trainers import TI_Trainer
 from detectron2.evaluation import inference_on_dataset
-import hooks
-from hooks import StopAtIterHook
-from pruners import SHA
+import detectron2_ML.hooks as hooks
+from detectron2_ML.hooks import StopAtIterHook
+from detectron2_ML.pruners import SHA
 import pandas as pd
 # install dependencies:
 import datetime

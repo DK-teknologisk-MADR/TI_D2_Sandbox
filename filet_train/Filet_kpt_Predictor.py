@@ -69,7 +69,6 @@ class Filet_ModelTester3(ModelTester):
         if self.print_log: print("starting phase 2")
         is_empty = False
         bad_warning_flag = False
-
         if len(pred_masks) == 0:
             is_empty = True
             if self.print_log : print("Phase2: there seems to be objects")
@@ -107,7 +106,7 @@ class Filet_ModelTester3(ModelTester):
                     big_masks_cpu_cent[i] = res[:,:,None]
 #                   cv2.imshow("winz",big_masks_cpu_cent[i])
 #                    cv2.waitKey()
-
+                    
                 masked_pic = torch.tensor(masked_pic_cpu_cent,requires_grad=False,device=self.device).permute(0,3,1,2)
                 big_masks = torch.tensor(big_masks_cpu_cent,requires_grad=False,device=self.device).permute(0,3,1,2)
 # ------------------p2-preprocessing------------------------
@@ -122,6 +121,7 @@ class Filet_ModelTester3(ModelTester):
                 if self.print_log: print("PHASE2: best instances had iou", print(pred_ious))
                 is_good_mask = pred_ious > self.iou_thresh
              #   print(is_good_mask)
+
                 if torch.any(is_good_mask):
                     ind_to_biggest_objects = torch.argmax(is_good_mask.long())
                     pred_iou = pred_ious[ind_to_biggest_objects]

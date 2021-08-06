@@ -7,7 +7,7 @@ from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.structures import BoxMode
 
 
-def get_file_pairs(data_dir,split):
+def get_file_pairs(data_dir,split,sorted=False):
     '''
     input: data directory, and split ( train val test).
     output: dict of pairs of files one image, and one json file.
@@ -29,6 +29,9 @@ def get_file_pairs(data_dir,split):
     for key in to_drop:
         data_dict.pop(key)
         print("dropping data", key, " due to missing data")
+    if sorted:
+        for ls in data_dict.values():
+            ls.sort()
     return data_dict
 
 

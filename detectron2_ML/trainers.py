@@ -1,4 +1,4 @@
-from hooks import StopFakeExc
+from detectron2_ML.hooks import StopFakeExc
 from detectron2.engine import DefaultTrainer
 from detectron2.evaluation import COCOEvaluator
 class TI_Trainer(DefaultTrainer):

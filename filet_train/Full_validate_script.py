@@ -1,5 +1,4 @@
 import pandas as pd
-
 from filet_train.Filet_kpt_Predictor import Filet_ModelTester3
 import os
 import cv2
@@ -9,10 +8,12 @@ seg_model_dir = "/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSeg
 seg_model_fp = os.path.join(seg_model_dir,'best_model.pth')
 seg_model_cfg_fp = os.path.join(seg_model_dir,'cfg.yaml')
 discriminator_dir ="/pers_files/mask_models_pad_mask19/classi_net/model125"
+
 pic_dim = 1024
 p2_crop_size = [[200, pic_dim - 200], [100, pic_dim - 100]]
 p2_resize_shape = (693,618)
-tester = Filet_ModelTester3(seg_model_cfg_fp,seg_model_fp,os.path.join(discriminator_dir,"best_model.pth"),21,p2_crop_size=p2_crop_size,p2_resize_shape = p2_resize_shape,print_log=True,record_plots=True,device='cuda:1',ph2_need_sig=False)
+tester = Filet_ModelTester3(seg_model_cfg_fp,seg_model_fp,os.path.join(discriminator_dir,"best_model.pth"),21,p2_crop_size=p2_crop_size,p2_resize_shape = p2_resize_shape,print_log=True,record_plots=True,device='cuda:0')
+
 base_dir = "/pers_files/Combined_final/Filet"
 split = 'val'
 os.listdir(base_dir)

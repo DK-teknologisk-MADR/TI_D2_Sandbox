@@ -1,6 +1,8 @@
 import numpy as np
 import numba
 import cv2
+import matplotlib
+matplotlib.use('TkAgg')
 def centralize_img_wo_crop(img,fixed_translation = None):
     height,width,ch = img.shape
     non_zero_coords = np.array(np.nonzero(img))
@@ -32,3 +34,9 @@ def centralize_img_wo_crop(img,fixed_translation = None):
     T = np.float32([[1, 0, t_1], [0, 1, t_2]])
     img_translation = cv2.warpAffine(img, T, (width, height))
     return img_translation,(t_1,t_2),flag
+
+def get_largest_component_and_centroid(img):
+    nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(img, connectivity=4)
+    largest_component_label = 1 + np.argmax(stats[1:, cv2.CC_STAT_AREA])
+    output = np.where(output == largest_component_label,1,0)
+    return output,centroids
