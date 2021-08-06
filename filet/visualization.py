@@ -18,7 +18,7 @@ from detectron2.utils.visualizer import Visualizer
 from detectron2.data import MetadataCatalog
 
 torch.cuda.device(1)
-from filet_train.Filet_kpt_Predictor import Filet_ModelTester
+from filet.Filet_kpt_Predictor import Filet_ModelTester
 print(torch.cuda.current_device())
 
 def get_file_pairs_2021(data_dir,split):

@@ -150,11 +150,8 @@ class WRN_Regressor(Backbone_And_Fc_Head):
 
 
 def try_script_model(model,sample_shape,device = 'cuda:0',reps = 20,tolerance = 1e-7):
-
-    model = IOU_Discriminator_01()
     model.eval()
     model_jit  = torch.jit.script(model)
-
     results = []
     burn_in = reps//2
     timings_raw = np.zeros(reps-burn_in)
@@ -182,7 +179,7 @@ def try_script_model(model,sample_shape,device = 'cuda:0',reps = 20,tolerance = 
         print(f"try_script_model::average timings based on {reps-burn_in} trials: raw : {timings_raw.mean():3f}, jit : {timings_jit.mean():3f}")
         return model_jit , True
     else:
-        print("try_script_model:: failed model jit model")
+        print("try_script_model:: failed jit model")
         return model , False
 
 

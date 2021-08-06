@@ -9,7 +9,7 @@ print(torch.cuda.memory_summary())
 import scipy
 import pytorch_ML.hyperopt as md
 import torch.nn as nn
-from filet_train.mask_discriminator.mask_data_loader import rm_dead_data_and_get_ious , get_file_pairs, Filet_Seg_Dataset
+from filet.mask_discriminator.mask_data_loader import rm_dead_data_and_get_ious , get_file_pairs, Filet_Seg_Dataset
 import numpy as np
 import torch.optim as optim
 from pytorch_ML.validators import f1_score

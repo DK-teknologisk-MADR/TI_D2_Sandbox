@@ -1,18 +1,30 @@
 import pandas as pd
-from filet_train.Filet_kpt_Predictor import Filet_ModelTester3
+from filet.Filet_kpt_Predictor import Filet_ModelTester3
 import os
 import cv2
 import matplotlib.pyplot as plt
 from detectron2_ML.data_utils import get_file_pairs
-seg_model_dir = "/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
+seg_model_dir ="/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
 seg_model_fp = os.path.join(seg_model_dir,'best_model.pth')
 seg_model_cfg_fp = os.path.join(seg_model_dir,'cfg.yaml')
-discriminator_dir ="/pers_files/mask_models_pad_mask19/classi_net/model125"
+discriminator_dir = "/pers_files/mask_models_pad_mask19/classi_net/model125"
 
+
+#internal parameters. Do not touch this.
 pic_dim = 1024
 p2_crop_size = [[200, pic_dim - 200], [100, pic_dim - 100]]
 p2_resize_shape = (693,618)
-tester = Filet_ModelTester3(seg_model_cfg_fp,seg_model_fp,os.path.join(discriminator_dir,"best_model.pth"),21,p2_crop_size=p2_crop_size,p2_resize_shape = p2_resize_shape,print_log=True,record_plots=True,device='cuda:0')
+#internal parameters. Preprocessing to be done by Haiyan/Iman:
+# -Crop / resize to 1024/1024.
+# - ensure picture is BGR, uint8 (default when you cv2.imread() )
+#output is np.array with shape p3_kpts_nr x 2
+
+tester = Filet_ModelTester3(seg_model_cfg_fp,seg_model_fp,os.path.join(discriminator_dir,"best_model.pth"),p3_kpts_nr=21,p2_crop_size=p2_crop_size,p2_resize_shape = p2_resize_shape,print_log=True,record_plots=True,device='cuda:0')
+
+
+#img = cv2.imread("path/to/example/picture.jpg")
+#tester.get_key_points(img)
+
 
 base_dir = "/pers_files/Combined_final/Filet"
 split = 'val'

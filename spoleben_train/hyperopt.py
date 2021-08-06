@@ -80,7 +80,6 @@ evaluator = COCOEvaluator(data_names['val'],("bbox", "segm"), False,cfg.OUTPUT_D
 #hyperoptimization object that uses model_dict to use correct model, and get all hyper-parameters.
 #optimized after "task" as computed by "evaluator". The pruner is (default) SHA, with passed params pr_params.
 #number of trials, are chosen so that the maximum total number of steps does not exceed max_iter.
-
 hyp = D2_hyperopt(model_name,cfg_base=cfg,data_val_name = data_names['val'],trainer_cls=TI_Trainer,task=task,evaluator=evaluator,step_chunk_size=150,output_dir=output_dir,pruner_cls=SHA,max_iter = 35000)
 best_models = hyp.start()
 #returns pandas object

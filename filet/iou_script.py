@@ -13,7 +13,7 @@ import matplotlib
 import numpy as np
 matplotlib.use('TkAgg')
 torch.cuda.device(1)
-from filet_train.Filet_kpt_Predictor import Filet_ModelTester3
+from filet.Filet_kpt_Predictor import Filet_ModelTester3
 
 def crop_out_seg (img,cnt,pads = (0,0),crop_dim=(256+512,256+512)):
     rect = cv2.minAreaRect(cnt)

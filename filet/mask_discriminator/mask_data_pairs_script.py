@@ -14,7 +14,7 @@ from skimage.draw import polygon2mask
 import numpy as np
 matplotlib.use('TkAgg')
 torch.cuda.device(0)
-from detectron2_ML.predictors import ModelTester #from filet_train.Filet_kpt_Predictor import Filet_ModelTester
+from detectron2_ML.predictors import ModelTester #from filet.Filet_kpt_Predictor import Filet_ModelTester
 import numba
 device = 'cuda:0'
 data_dir = '/pers_files/Combined_final/Filet'

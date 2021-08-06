@@ -1,0 +1,14 @@
+Go to pyscripts/filet_train/run_script.py
+give dir paths
+seg_model_dir
+discriminator_dir
+
+Use method tester.get_key_points(img) for getting keypoints.
+INPUT:
+    dopreprocessing before inserting into model:
+        -crop / resize to 1024/1024.
+        - ensure picture is BGR, uint8 (default when you cv2.imread())
+        - insert it as numpy array or similar
+
+OUTPUT:
+    np.array with shape 2 x kpts_out. Feel free to change kpts_out to another odd positive integer.

@@ -1,9 +1,9 @@
-from filet_train.mask_discriminator.mask_data_loader import rm_dead_data_and_get_ious , get_file_pairs, Filet_Seg_Dataset
+from filet.mask_discriminator.mask_data_loader import rm_dead_data_and_get_ious , get_file_pairs, Filet_Seg_Dataset
 from torchvision import transforms
 import pandas as pd
 import numpy as np
 from pytorch_ML.networks import IOU_Discriminator, IOU_Discriminator_Sig_MSE
-from filet_train.mask_discriminator.Model_Tester_Mask import Model_Tester_Mask
+from filet.mask_discriminator.Model_Tester_Mask import Model_Tester_Mask
 #import scikit_learn.metrics.confusion_matrix
 from sklearn.metrics import confusion_matrix,ConfusionMatrixDisplay
 data_dir = '/pers_files/mask_data'
