@@ -42,7 +42,7 @@ class Trainer():
         if wts is None:
             wts = np.ones(len(dt))
         sampler = WeightedRandomSampler(weights=wts, num_samples=len(dt), replacement=True)
-        return DataLoader(dt, batch_size=bs, sampler=sampler, pin_memory=True)
+        return DataLoader(dt, batch_size=bs, sampler=sampler, pin_memory=True,num_workers=0)
 
     def save_model(self,to_save,file_name = "checkpoint.pth"):
         state = {
@@ -128,7 +128,8 @@ class Trainer():
         pass
 
     def after_train(self):
-        self.val_and_maybe_save('best_model.pth')
+        if  self.itr % self.eval_period > 20:
+            self.val_and_maybe_save('best_model.pth')
         self.save_model(file_name=f"checkpoint.pth",to_save={'val_score' : self.val_score_cur})
 
     def before_step(self):
@@ -137,9 +138,9 @@ class Trainer():
     def after_step(self):
         pass
 
-    def validate(self,val_nr=None, bs = 4,fun = None,aggregate_device = None):
+    def validate(self,val_nr=None, bs = 10,fun = None,aggregate_device = None):
         if aggregate_device is None:
-            aggregate_device = 'cpu' #the device which fun wants input in
+            aggregate_device = self.gpu_id #the device which fun wants input in
         if fun is None:
             fun = self.fun_val
         self.net.eval()
@@ -149,7 +150,6 @@ class Trainer():
             val_nr = len(self.dt_val)
         print("validating with ", val_nr, " observations")
         val_loader = self.get_loader(self.dt_val, bs)
-        total_loss = torch.tensor(0.0, device=self.gpu_id)
         instances_nr = torch.tensor(0, device='cpu')
         targets_ls = []
         out_ls = []
@@ -167,7 +167,7 @@ class Trainer():
             targets = torch.cat(targets_ls,0)
             outs = torch.cat(out_ls,0) #dim i,j,: gives out if j= 0 and target if j = 1
             score = fun(outs,targets)
-            score.to('cpu')
+            score = score.to('cpu')
 
         print("validate: ran validation, and got score", score)
         self.net.train()

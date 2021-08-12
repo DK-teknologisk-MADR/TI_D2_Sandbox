@@ -1,3 +1,4 @@
+import cv2
 import torch
 import sys, os
 
@@ -10,7 +11,7 @@ print(torch.cuda.memory_summary())
 import scipy
 from filet.mask_discriminator.hyperopt import Mask_Hyperopt
 import torch.nn as nn
-from filet.mask_discriminator.mask_data_loader import rm_dead_data_and_get_ious, Filet_Seg_Dataset
+from filet.mask_discriminator.mask_data_loader import rm_dead_data_and_get_ious, Filet_Seg_Dataset,Filet_Seg_Dataset_Box
 from detectron2_ML.data_utils import get_file_pairs
 import numpy as np
 import torch.optim as optim
@@ -19,6 +20,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau , ExponentialLR
 from pytorch_ML.networks import IOU_Discriminator
 from torchvision.transforms import Normalize
 from filet.mask_discriminator.iou_transformations import get_r_mean_std,normalize_ious,rectify_ious
+
 import os
 img_dir="/pers_files/Combined_final/Filet/train"
 data_dir = '/pers_files/mask_data_raw'
@@ -41,21 +43,40 @@ iou_arr = np.array(list(iou_dict.values()))
 #ty = [Normalize( mean=iou_arr.mean(), std=iou_arr.std())]
 #tx = [Normalize( mean=[0.485, 0.456, 0.406,0], std=[0.229, 0.224, 0.225,1])]
 
-dt = Filet_Seg_Dataset(mask_dir=data_dir, img_dir=img_dir,split=train_split,trs_x= [] , trs_y=[rectify_ious])
-dt_val = Filet_Seg_Dataset(mask_dir=data_dir, img_dir=img_dir,split=val_split,trs_x= [] , trs_y=[rectify_ious])
+dt = Filet_Seg_Dataset_Box(mask_dir=data_dir, img_dir=img_dir,split=train_split,trs_x= [] , trs_y=[rectify_ious])
+dt_val = Filet_Seg_Dataset_Box(mask_dir=data_dir, img_dir=img_dir,split=val_split,trs_x= [] , trs_y=[rectify_ious])
+
+
+# for i in range(500):
+#     img,val = dt[i]
+#     check[i] = img
+# check.mean(axis=(0,2,3))
+# check.std(axis=(0,2,3))
+
+#TO SHOW:
+#img = img.permute(1,2,0).numpy()
+#cv2.imshow("window",img)
+#cv2.imshow("window2",255*img[:,:,3])
+#cv2.waitKey()
+#cv2.destroyAllWindows()
+
+
+from torchvision.transforms import ToTensor
+
 import time
 
 
 ious = iou_arr #CHANGE TO DT
 #st_inds = np.argsort(ious)
 #qs = np.arange(0.04,1.0,0.04)[:6]
-quants =np.array([0.9,0.95]) #quants = np.quantile(iou_arr,qs)
+quants =np.array([0.84,0.95]) #quants = np.quantile(iou_arr,qs)
 #ious.std()
 #np.hstack([quants])
 intervals = np.searchsorted(quants, ious)
 nrs = np.bincount(intervals)
 weights_pre = nrs[0] / nrs
 weights_pre = weights_pre * (1 / min(weights_pre))
+weights_pre[1] = 0.01 #AVOID THOSE WE ARE IN DOUBT OF
 print("loader will get weights",weights_pre, "for data between points",quants)
 weights = weights_pre[intervals]
 #model_path = "~/Pyscripts/test_folder"
@@ -71,14 +92,9 @@ base_params = {
     "net": {'device': 'cuda'}
 }
 
-output_dir =os.path.join(model_path,"classi_net1")
-os.makedirs(output_dir,exist_ok=True)
-hyper = Mask_Hyperopt(base_lr=0.00001,base_path=model_path,max_iter = 150000,iter_chunk_size = 200,dt= dt,output_dir=output_dir,val_nr=None, bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 200,dt_wts = weights,fun_val=f1_score)
-hyper.hyperopt()
-
-output_dir =os.path.join(model_path,"classi_net2")
-os.makedirs(output_dir,exist_ok=True)
-hyper = Mask_Hyperopt(base_lr=0.001,base_path=model_path,max_iter = 150000,iter_chunk_size = 200,dt= dt,output_dir=output_dir,val_nr=None, bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 200,dt_wts = weights,fun_val=f1_score)
+output_dir =os.path.join(model_path,"classi_extreme_net")
+os.makedirs(output_dir,exist_ok=False)
+hyper = Mask_Hyperopt(base_lr=0.0001,base_path=model_path,max_iter = 150000,iter_chunk_size = 200,dt= dt,output_dir=output_dir,val_nr=1000, bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 200,dt_wts = weights,fun_val=f1_score)
 hyper.hyperopt()
 
 

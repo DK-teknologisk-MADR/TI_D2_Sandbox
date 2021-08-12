@@ -1,10 +1,9 @@
-
-from filet.mask_discriminator.mask_data_loader import rm_dead_data_and_get_ious
+from detectron2_ML.data_utils import get_file_pairs
 import numpy as np
 import os
 import shutil
-data_dir = "/pers_files/mask_pad_data19_centralized"
-files,ious = rm_dead_data_and_get_ious(data_dir,"")
+data_dir = "/pers_files/mask_data_raw"
+files = get_file_pairs(data_dir,"")
 tup = len(files)*.9,len(files)*.1
 ls = [int(x) for x in tup]
 splits = np.repeat(["train","val"],ls)

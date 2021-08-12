@@ -19,5 +19,5 @@ def normalize_ious(iou_arr):
 def rectify_ious(iou_arr):
     iou_normed = np.where(iou_arr>0.95,1,iou_arr)
     iou_normed = np.where(iou_normed<0.90,0,iou_normed)
-    iou_normed = np.where(np.logical_and(iou_normed>0.90, iou_normed < 0.95) ,iou_normed * 20 - 18,iou_normed)
+    iou_normed = np.where(np.logical_and(iou_normed>=0.90, iou_normed <= 0.95) ,iou_normed * 20 - 18,iou_normed)
     return iou_normed

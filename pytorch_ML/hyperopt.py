@@ -1,3 +1,5 @@
+import shutil
+
 import numpy as np
 from torch.optim.lr_scheduler import ExponentialLR
 from numpy.random import uniform
@@ -10,7 +12,7 @@ import torch.nn as nn
 import random
 import torch.optim as optim
 from pytorch_ML.trainer import Trainer
-from validators import f1_score
+from pytorch_ML.validators import f1_score
 #matplotlib.use('TkAgg')
 #model_resnet = resnet101(True).to(compute_device)
 compute_device = "cuda:0"
@@ -46,13 +48,16 @@ class Hyperopt():
         overload this function with hyper generation.
         '''
         generated_values = {
-            "optimizer" : { "lr": uniform(0.0005, 0.1) , "momentum": uniform(0.1, 0.6)},
+            "optimizer" : { "lr": None, "momentum": uniform(0.1, 0.6)},
             "scheduler" : {'gamma' : None},
             "loss" : {},
             "net" : {'two_layer_head' : random.random()>0.5},
         }
         lr_half_time = uniform(200, 4000)
         generated_values['scheduler']["gamma"] = np.exp(-np.log(2)/lr_half_time)
+        lr_magnitude = - random.randint(2,6)
+        lr_scale = random.uniform(1,10)
+        generated_values['optimizer']["lr"] = 10**(lr_magnitude) * lr_scale
         return generated_values
 
 
@@ -117,18 +122,22 @@ class Hyperopt():
         while not done:
             score = self.resume_or_initiate_train(model_dir= paths[trial_id_cur],max_iter= self.iter_chunk_size * self.pruner.get_cur_res(), hyper = self.hyper_vals[trial_id_cur], bs=4)
             self.result_df.loc[trial_id_cur,'val_score'] = score
+            print("Hyperopt : trial sprint completed for ID",trial_id_cur)
             trial_id_cur, pruned, done = self.pruner.report_and_get_next_trial(float(score))
-            print("Hyperopt : trial sprint completed for ID",trial_id_cur,". rung is ",self.pruner.rung_cur)
+            print("rung is now",self.pruner.rung_cur)
             print("Hyperopt : result of this sprint was",score )
             print("Hyperopt : .........results are................")
             self.result_df.loc[pruned,'pruned'] = True
-            self.after_prune()
+            self.after_prune(pruned)
             self.pruner.print_status()
         self.result_df.to_csv(os.path.join(self.output_dir,"result.csv"))
 
     def resume_or_initiate_train(self,model_dir=None, max_iter=1, hyper={}, bs=4):
         #TODO: TAKE THIS when merging
         hyper_objs = self.construct_trainer_objs(hyper)
+        print("resuming training of",os.path.basename(model_dir))
+        print("hyper parameters are:")
+        print(hyper)
         trainer = Trainer(dt = self.dt,dt_wts = self.dt_wts,max_iter=max_iter,
                           output_dir = model_dir,eval_period = self.eval_period,print_period=50,bs=self.bs,dt_val=self.dt_val, fun_val=self.fun_val,
                           val_nr = self.val_nr,add_max_iter_to_loaded=True,**hyper_objs)
@@ -144,9 +153,12 @@ class Hyperopt():
         return score
     # to_load : lst of strings giving keys to extract from load
 
-    def after_prune(self):
-        pass
-
+    def after_prune(self,pruned):
+        '''
+        Overwrite this if yo uwant different behavior
+        '''
+        for prune_id in pruned:
+            shutil.rmtree(os.path.join(self.output_dir,f"model{prune_id}"))
 
 
 

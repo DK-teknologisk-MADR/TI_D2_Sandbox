@@ -37,6 +37,7 @@ tx = [Normalize( mean=[0.485, 0.456, 0.406,0], std=[0.229, 0.224, 0.225,1])]
 
 dt = Filet_Seg_Dataset(data,iou_dict,data_dir,train_split,trs_x= tx , trs_y_bef=[normalize_ious],mask_only=False)
 dt_val = Filet_Seg_Dataset(data_val,iou_dict_val,data_dir,val_split,trs_x= tx,trs_y_bef=[normalize_ious],mask_only=False)
+
 ious = iou_arr #CHANGE TO DT
 #st_inds = np.argsort(ious)
 #qs = np.arange(0.04,1.0,0.04)[:6]

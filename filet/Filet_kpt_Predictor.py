@@ -2,7 +2,7 @@ from detectron2.utils.logger import setup_logger
 setup_logger()
 import numpy as np
 import cv2
-from filet.mask_discriminator.Model_Tester_Mask import Model_Tester_Mask
+from filet.mask_discriminator.model_tester_mask import Model_Tester_Mask
 from pytorch_ML.networks import IOU_Discriminator,IOU_Discriminator_01,try_script_model
 from detectron2_ML.predictors import ModelTester
 import torch
@@ -11,7 +11,7 @@ from torchvision.transforms import Normalize
 from detectron2.utils.visualizer import Visualizer
 from torch.nn import Conv2d
 from detectron2.data import MetadataCatalog
-from mask_discriminator.transformations import centralize_img_wo_crop
+from filet.mask_discriminator.transformations import centralize_img_wo_crop
 class Filet_ModelTester3(ModelTester):
     ''''
     last updated to C073_D2_docker aug 06.
