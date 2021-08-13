@@ -1,6 +1,7 @@
 from detectron2_ML.hooks import StopFakeExc
 from detectron2.engine import DefaultTrainer
 from detectron2.evaluation import COCOEvaluator
+from detectron2.data import DatasetMapper, build_detection_train_loader
 class TI_Trainer(DefaultTrainer):
     '''
     We should always use this trainer instead of defaulttrainer. Its exactly like it, except that it catches the StopFakeExc used for early stopping by hooks in hooks.py
@@ -30,3 +31,26 @@ class TrainerPeriodicEval(TI_Trainer):
     @classmethod
     def build_evaluator(cls, cfg, dataset_name):
         return COCOEvaluator(dataset_name, output_dir=cfg.OUTPUT_DIR)
+
+
+
+
+class TrainerWithMapper(TI_Trainer):
+    '''
+    Example of a trainer that applies argumentations at runtime. Argumentations available can be found here:
+    https://detectron2.readthedocs.io/en/latest/modules/data_transforms.html
+    '''
+    def __init__(self,augmentations,**params_to_DefaultTrainer):
+        super().__init__(**params_to_DefaultTrainer)
+        self.augmentations=augmentations
+
+    #overwrites default build_train_loader
+    @classmethod
+    def build_train_loader(cls, cfg):
+          mapper = DatasetMapper(cfg, is_train=True, augmentations=self.augmentations)
+          return build_detection_train_loader(cfg,mapper=mapper)
+
+
+@classmethod
+def build_evaluator(cls, cfg, dataset_name):
+    return COCOEvaluator(dataset_name, output_dir=cfg.OUTPUT_DIR)

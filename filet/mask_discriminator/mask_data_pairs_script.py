@@ -24,8 +24,8 @@ import numba
 device = 'cuda:0'
 data_dir = '/pers_files/Combined_final/Filet'
 base_dir = "/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
-output_dir = "/pers_files/mask_data_raw"
-#os.mkdir(output_dir)
+output_dir = "/pers_files/mask_data_raw_good_score"
+os.mkdir(output_dir)
 pic_dim = 1024
 class Cropper():
     def __init__(self,crop,pad,device = 'cuda:0'):
@@ -108,17 +108,14 @@ class PreProcessor():
     # cv2.waitKey()
 
 
-def generate_masks_and_json():
+def generate_masks_and_json(split):
     pic_dim = 1024
-    crop_dim = [[0, pic_dim], [0, pic_dim]]  # crop_dim = [[200,pic_dim-200],[0,pic_dim]]
-
-    pixel_pad = 35
     data_dir = '/pers_files/Combined_final/Filet'
     base_dir = "/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
-    output_dir = "/pers_files/mask_data_raw"
+    output_dir = f"/pers_files/mask_data_raw_TV/{split}"
     os.makedirs(output_dir,exist_ok=True)
-    coco_dicts = data_utils.get_data_dicts(data_dir, 'train', file_pairs=get_file_pairs_2021(data_dir, split))
-    data_utils.register_data('filet', ['train'], coco_dicts, {'thing_classes': ['filet']})
+    coco_dicts = data_utils.get_data_dicts(data_dir, split, file_pairs=get_file_pairs_2021(data_dir, split))
+    data_utils.register_data('filet', [split], coco_dicts, {'thing_classes': ['filet']})
     cfg_fp = base_dir + "/cfg.yaml"
     chk_dir = base_dir + "/best_model.pth"
 
@@ -146,16 +143,14 @@ def generate_masks_and_json():
         img = os.path.join(data_dir, split, jpg)
         input_img = cv2.imread(img)
         pred_output = predictor(input_img)
-        n_inst_pred = len(pred_output['instances'])
-        ious = np.zeros(n_inst_pred)
         with open(os.path.join(data_dir,split,json_file)) as fp:
             gt_dict = json.load(fp)
         n_inst_gt = len(gt_dict['shapes'])
         masks = np.zeros((n_inst_gt,pic_dim,pic_dim))
         for i in range(n_inst_gt):
             masks[i] = polygon2mask((pic_dim,pic_dim),np.flip(np.array(gt_dict['shapes'][i]['points']),axis=1))
-        masks_pred_ts = pred_output['instances'].pred_masks
-        masks_pred = pred_output['instances'].pred_masks.to('cpu').numpy().astype('uint8')
+        has_good_score = pred_output['instances'].scores > 0.8
+        masks_pred =pred_output['instances'][has_good_score].pred_masks.to('cpu').numpy().astype('uint8')
         is_big_pred = masks_pred.sum(axis=2).sum(axis=1)>22000
         ious = get_ious(masks,masks_pred[is_big_pred])
         ords = np.argsort(ious)[::-1]
@@ -165,9 +160,9 @@ def generate_masks_and_json():
                 runup = best
             else:
                 runup = ious[ords[1]]
-            df_row_dict = { col : val for col,val in zip(cols,[front,best,runup,n_inst_gt,n_inst_pred])}
+            df_row_dict = { col : val for col,val in zip(cols,[front,best,runup,n_inst_gt,len(masks_pred)])}
             ls_to_df.append(df_row_dict)
-            for i in range(n_inst_pred):
+            for i in range(len(masks_pred)):
                 if is_big_pred[i]:
                     iou = find_best_iou(masks, masks_pred[i])
                     iou_dict[f"{output_dir}/{front}_ins{i}"] = iou
@@ -203,9 +198,9 @@ def get_file_pairs_2021(data_dir,split):
             print("warning: unknown year")
             print(front)
     return data_pairs_2021
-split = 'train'
 
-# #generate_masks_and_json()
+generate_masks_and_json('val')
+generate_masks_and_json('train')
 #
 #
 #

@@ -47,11 +47,13 @@ class Filet_Seg_Dataset(Dataset):
     def __init__(self, mask_dir,img_dir,split, trs_x=[], trs_y=[]):
         self.mask_dict = get_file_pairs(mask_dir,split)
         self.mask_fronts = [key for key in self.mask_dict.keys()]
-        self.img_dir = img_dir
+        self.img_dir = os.path.join(img_dir,split)
         self.prep = PreProcessor([[250,1024-250],[100,1024-100]],resize_dims=(393,618),pad=35,mean=[0,0,0],std=[1,1,1])
         self.split = split
         self.trs_y = trs_y
         self.mask_dir = mask_dir
+
+
     def __len__(self):
         return len(self.mask_dict)
 

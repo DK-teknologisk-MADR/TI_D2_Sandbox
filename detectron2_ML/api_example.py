@@ -7,8 +7,8 @@ from detectron2 import model_zoo
 from detectron2.data import DatasetMapper, build_detection_train_loader
 import detectron2.data.transforms as T
 from detectron2.evaluation import COCOEvaluator
-from pruners import SHA
-from trainers import TrainerPeriodicEval
+from detectron2_ML.pruners import SHA
+from detectron2_ML.trainers import TrainerWithMapper,TrainerPeriodicEval
 from hyperoptimization import D2_hyperopt_Base
 from numpy import random
 from data_utils import get_data_dicts, register_data
@@ -85,20 +85,6 @@ print(best_models)
 
 #-----------------------------
 #example of a training procedure
-class TrainerWithMapper(TI_Trainer):
-    '''
-    Example of a trainer that applies argumentations at runtime. Argumentations available can be found here:
-    https://detectron2.readthedocs.io/en/latest/modules/data_transforms.html
-    '''
-    def __init__(self,augmentations,**params_to_DefaultTrainer):
-        super().__init__(**params_to_DefaultTrainer)
-        self.augmentations=augmentations
-
-    #overwrites default build_train_loader
-    @classmethod
-    def build_train_loader(cls, cfg):
-          mapper = DatasetMapper(cfg, is_train=True, augmentations=augmentations)
-          return build_detection_train_loader(cfg,mapper=mapper)
 
 augmentations = [
           T.RandomCrop('relative_range',[0.9,0.9]),

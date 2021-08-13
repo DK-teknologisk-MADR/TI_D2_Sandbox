@@ -24,11 +24,12 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau , ExponentialLR
 from pytorch_ML.networks import IOU_Discriminator
 from torchvision.transforms import Normalize
 import os
-img_dir="/pers_files/Combined_final/Filet/train"
-data_dir = '/pers_files/mask_data_raw'
+img_dir="/pers_files/Combined_final/Filet"
+data_dir = '/pers_files/mask_data_raw_TV/'
 train_split = "train"
-model_path = '/pers_files/mask_models_pad_mask35'
+model_path = '/pers_files/mask_models_pad_mask35_TV'
 val_split = "val"
+
 file_pairs_train = get_file_pairs(data_dir,train_split)
 file_pairs_val = get_file_pairs(data_dir,val_split)
 data , iou_dict = rm_dead_data_and_get_ious(data_dir,train_split,file_pairs_train)
@@ -45,28 +46,28 @@ iou_arr = np.array(list(iou_dict.values()))
 
 dt = Filet_Seg_Dataset(mask_dir=data_dir, img_dir=img_dir,split=train_split,trs_x= [] , trs_y=[rectify_ious])
 dt_val = Filet_Seg_Dataset(mask_dir=data_dir, img_dir=img_dir,split=val_split,trs_x= [] , trs_y=[rectify_ious])
-
 #load model
 net = IOU_Discriminator_01(two_layer_head=False,device='cuda:1')
-tester = Model_Tester_Mask(net=net,path=os.path.join(model_path,"classi_net1","model59","best_model.pth"),device='cuda:1')
-loader = get_loader(dt_val,bs=10)
+tester = Model_Tester_Mask(net=net,path=os.path.join(model_path,"classi_net1_TV","model7","best_model.pth"),device='cuda:1')
+bs=10
+loader = get_loader(dt_val,bs=bs)
 targets_ls,out_ls = [],[]
 samples = []
 fun=f1_score
 aggregate_device = 'cuda:1'
 for batch,targets in loader:
-    batch = batch.to('cuda:1',non_blocking = True)
-    target_batch = targets.to('cuda:1',non_blocking = True)
+    batch = batch.to('cuda:1')
+    target_batch = targets.to('cuda:1')
     out_batch = tester.get_evaluation(batch)
     targets_ls.append(target_batch)
     out_ls.append(out_batch)
-    samples.append((batch[0].to('cpu').numpy(),targets[0].to('cpu').numpy(),out_batch[0].to('cpu').numpy()))
+    for i in range(3):
+        samples.append((batch[i].to('cpu').numpy(),targets[i].to('cpu').numpy(),out_batch[i].to('cpu').numpy()))
 targets = torch.cat(targets_ls, 0)
 outs = torch.cat(out_ls, 0).squeeze(1)  # dim i,j,: gives out if j= 0 and target if j = 1
 scores = []
 precs = []
 recs = []
-outs
 ths = np.arange(0.5,1,0.05)
 for th in ths:
     outs_th = torch.where(outs>th,1,0)
@@ -84,10 +85,18 @@ plt.legend(loc="upper left")
 plt.axis([0.5, 1, 0, 1], 'equal')
 plt.grid()
 
-#samples_fixed = [(img.transpose(1,2,0),target,out[0]) for img,target,out in samples]
+
+samples_fixed = [(img.transpose(1,2,0),target,out[0]) for img,target,out in samples]
+len(samples_fixed)
+count = 0
+for img,target,out in samples_fixed:
+    if target ==1 and out < 0.65:
+        count +=1
+print(count)
 
 for img,target,out in samples_fixed:
-    print("target",target,"out",out)
+#    if out<0.65 and target == 0:
+    print("target",target,"out",out,"area",img[:, :, 3].sum(axis=(0,1)))
     cv2.namedWindow("meat")
     cv2.moveWindow("meat", 500, 500)
     cv2.imshow("meat", img[:, :, :3])

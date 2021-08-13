@@ -86,6 +86,7 @@ class PreProcessor():
         mask_center = torch.tensor(mask_center,dtype=torch.float).unsqueeze(0)
         mask_padded = self.conv(mask_center.unsqueeze(0)).squeeze(0)
         mask_padded = mask_padded.bool().long()
+        img_ts = self.torchvision_transforms(img_center)
         img_masked = (img_ts * mask_padded)
         full_output = torch.vstack([img_masked,mask_center])
         full_output = torchvision.transforms.functional.resize(full_output,self.resize_dims)

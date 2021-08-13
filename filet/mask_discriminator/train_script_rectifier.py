@@ -20,10 +20,10 @@ from pytorch_ML.networks import IOU_Discriminator
 from torchvision.transforms import Normalize
 from filet.mask_discriminator.iou_transformations import get_r_mean_std,normalize_ious,rectify_ious
 import os
-img_dir="/pers_files/Combined_final/Filet/train"
+img_dir="/pers_files/Combined_final/Filet"
 data_dir = '/pers_files/mask_data_raw'
 train_split = "train"
-model_path = '/pers_files/mask_models_pad_mask35'
+model_path = '/pers_files/mask_models_pad_mask35_TV'
 val_split = "val"
 
 #os.makedirs(model_path)
@@ -72,14 +72,14 @@ base_params = {
 }
 
 output_dir =os.path.join(model_path,"classi_net1")
-os.makedirs(output_dir,exist_ok=True)
-hyper = Mask_Hyperopt(base_lr=0.00001,base_path=model_path,max_iter = 150000,iter_chunk_size = 200,dt= dt,output_dir=output_dir,val_nr=None, bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 200,dt_wts = weights,fun_val=f1_score)
+os.makedirs(output_dir,exist_ok=False)
+hyper = Mask_Hyperopt(base_lr=0.0005,base_path=model_path,max_iter = 150000,iter_chunk_size = 200,dt= dt,output_dir=output_dir,val_nr=None, bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 200,dt_wts = weights,fun_val=f1_score)
 hyper.hyperopt()
 
-output_dir =os.path.join(model_path,"classi_net2")
-os.makedirs(output_dir,exist_ok=True)
-hyper = Mask_Hyperopt(base_lr=0.001,base_path=model_path,max_iter = 150000,iter_chunk_size = 200,dt= dt,output_dir=output_dir,val_nr=None, bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 200,dt_wts = weights,fun_val=f1_score)
-hyper.hyperopt()
+#output_dir =os.path.join(model_path,"classi_net2")
+#os.makedirs(output_dir,exist_ok=True)
+#hyper = Mask_Hyperopt(base_lr=0.001,base_path=model_path,max_iter = 150000,iter_chunk_size = 200,dt= dt,output_dir=output_dir,val_nr=None, bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 200,dt_wts = weights,fun_val=f1_score)
+#hyper.hyperopt()
 
 
 
