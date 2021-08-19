@@ -31,7 +31,8 @@ class D2_hyperopt_Base():
                  max_iter = 90,
                  trainer_cls = TI_Trainer,
                  pruner_cls = SHA,
-                 pr_params = {}):
+                 pr_params = {},
+                 trainer_params = {}):
         self.step_chunk_size = step_chunk_size
         self.model_name=model_name
         self.task = task
@@ -47,7 +48,7 @@ class D2_hyperopt_Base():
         self.time = datetime.datetime.now()
         self.time_info_str = "-".join(
             [str(x) for x in [self.date.year, self.date.month, self.date.day, self.time.hour, self.time.minute]])
-
+        self.trainer_params = trainer_params
         #create df with hyper_params
         hps = self.suggest_values()
         hp_names = []
@@ -107,9 +108,9 @@ class D2_hyperopt_Base():
         '''
         load a model specified by cfg and train
         '''
-        #cfg.SOLVER.MAX_ITER += self.super_step_size*res
+        cfg.SOLVER.MAX_ITER += self.step_chunk_size*res
         os.makedirs(cfg.OUTPUT_DIR, exist_ok=True)
-        trainer = self.trainer_cls(trial_id=trial_id,iter=res * self.step_chunk_size,cfg=cfg)
+        trainer = self.trainer_cls(trial_id=trial_id,iter=res * self.step_chunk_size,cfg=cfg,**self.trainer_params)
         trainer.resume_or_load(resume= True)
         return trainer
 

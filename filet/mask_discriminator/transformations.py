@@ -142,7 +142,9 @@ class PreProcessor_Box_Crop():
                      self.crop[1][0]: self.crop[1][1]]
         img_full = np.concatenate([img_center,mask_center[:,:,None]],axis=2)
         img_full = cv2.resize(img_full,(self.resize_dims[1],self.resize_dims[0]))
+        img_full[:,:,3]= np.where(img_full[:,:,3]>0,255,0)
         img_full = self.torchvision_transforms(img_full)
+
         return img_full
 #x = PreProcessor_Box_Crop((0,1024,0,1024),(500,500),15,[0,0,0],[1,1,1])
 

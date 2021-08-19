@@ -25,7 +25,7 @@ device = 'cuda:0'
 data_dir = '/pers_files/Combined_final/Filet'
 base_dir = "/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
 output_dir = "/pers_files/mask_data_raw_good_score"
-os.mkdir(output_dir)
+
 pic_dim = 1024
 class Cropper():
     def __init__(self,crop,pad,device = 'cuda:0'):
@@ -112,8 +112,8 @@ def generate_masks_and_json(split):
     pic_dim = 1024
     data_dir = '/pers_files/Combined_final/Filet'
     base_dir = "/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
-    output_dir = f"/pers_files/mask_data_raw_TV/{split}"
-    os.makedirs(output_dir,exist_ok=True)
+    output_dir = f"/pers_files/mask_data_raw_TV_good_score/{split}"
+    os.makedirs(output_dir,exist_ok=False)
     coco_dicts = data_utils.get_data_dicts(data_dir, split, file_pairs=get_file_pairs_2021(data_dir, split))
     data_utils.register_data('filet', [split], coco_dicts, {'thing_classes': ['filet']})
     cfg_fp = base_dir + "/cfg.yaml"

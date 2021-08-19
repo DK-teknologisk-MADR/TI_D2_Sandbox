@@ -83,15 +83,6 @@ class Trainer(TI_Trainer):
     def handle_else(self,**kwargs):
         self.helper_after_train()
 
-augmentations = [
-          T.RandomFlip(prob=0.5, horizontal=True, vertical=False),
-          T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
-          T.RandomBrightness(0.9,1.1),
-          T.RandomExtent([0.9, 1], [0, 0]),
-          T.RandomRotation(angle=[-10, 10], expand=False, center=None, sample_style='range'),
-          T.Resize((1024,1024)),
-
-]
 
 
 def do_train(augmentations,cfg):

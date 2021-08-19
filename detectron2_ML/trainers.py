@@ -2,6 +2,7 @@ from detectron2_ML.hooks import StopFakeExc
 from detectron2.engine import DefaultTrainer
 from detectron2.evaluation import COCOEvaluator
 from detectron2.data import DatasetMapper, build_detection_train_loader
+from detectron2_ML.hooks import StopByProgressHook
 class TI_Trainer(DefaultTrainer):
     '''
     We should always use this trainer instead of defaulttrainer. Its exactly like it, except that it catches the StopFakeExc used for early stopping by hooks in hooks.py
@@ -41,16 +42,58 @@ class TrainerWithMapper(TI_Trainer):
     https://detectron2.readthedocs.io/en/latest/modules/data_transforms.html
     '''
     def __init__(self,augmentations,**params_to_DefaultTrainer):
-        super().__init__(**params_to_DefaultTrainer)
         self.augmentations=augmentations
+        super().__init__(**params_to_DefaultTrainer)
 
     #overwrites default build_train_loader
-    @classmethod
-    def build_train_loader(cls, cfg):
+    def build_train_loader(self, cfg):
           mapper = DatasetMapper(cfg, is_train=True, augmentations=self.augmentations)
           return build_detection_train_loader(cfg,mapper=mapper)
 
 
-@classmethod
-def build_evaluator(cls, cfg, dataset_name):
-    return COCOEvaluator(dataset_name, output_dir=cfg.OUTPUT_DIR)
+
+    @classmethod
+    def build_evaluator(cls,cfg,dataset_name,output_folder=None):
+        if output_folder is None:
+            output_folder = cfg.OUTPUT_DIR
+        return COCOEvaluator(dataset_name, ('bbox', 'segm'), False, output_dir=output_folder)
+
+
+
+class Trainer_With_Early_Stop(TI_Trainer):
+    '''
+    Example of a trainer that applies argumentations at runtime. Argumentations available can be found here:
+    https://detectron2.readthedocs.io/en/latest/modules/data_transforms.html
+    '''
+    def __init__(self,augmentations,cfg,**params_to_Trainer):
+        self.augmentations=augmentations
+        self.period_between_evals = cfg.TEST.EVAL_PERIOD
+        self.top_score_achieved = 0
+        super().__init__(cfg=cfg,**params_to_Trainer)
+    #overwrites default build_train_loader
+
+    def build_train_loader(self, cfg):
+          mapper = DatasetMapper(cfg, is_train=True, augmentations=self.augmentations)
+          return build_detection_train_loader(cfg,mapper=mapper)
+
+    @classmethod
+    def build_evaluator(cls,cfg,dataset_name,output_folder=None):
+        if output_folder is None:
+            output_folder = cfg.OUTPUT_DIR
+        return COCOEvaluator(dataset_name, ('bbox', 'segm'), False, output_dir=output_folder)
+
+
+    def build_hooks(self):
+        res = super().build_hooks()
+        res.append(StopByProgressHook(patience=25 * self.period_between_evals, delta_improvement=0.5, score_storage_key='segm/AP', save_name_base="best_model"))
+        print("BUILDING THESE HOOKS")
+        return res
+
+    def helper_after_train(self,**kwargs):
+        self.top_score_achieved = self.storage.latest()[f'best_segm/AP']
+
+    def handle_stop(self,**kwargs):
+        self.helper_after_train()
+
+    def handle_else(self,**kwargs):
+        self.helper_after_train()

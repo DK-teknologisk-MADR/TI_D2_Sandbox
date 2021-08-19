@@ -21,3 +21,14 @@ def rectify_ious(iou_arr):
     iou_normed = np.where(iou_normed<0.90,0,iou_normed)
     iou_normed = np.where(np.logical_and(iou_normed>=0.90, iou_normed <= 0.95) ,iou_normed * 20 - 18,iou_normed)
     return iou_normed
+
+class Rectifier():
+    def __init__(self,below,upper):
+        self.below = below
+        self.upper = upper
+        assert below == upper
+    def __call__(self, arr):
+        iou_normed = np.where(arr > self.upper, 1, arr)
+        iou_normed = np.where(iou_normed <= self.below, 0, iou_normed)
+        return iou_normed
+       # iou_normed = np.where(np.logical_and(iou_normed >= 0.90, iou_normed <= 0.95), iou_normed * 20 - 18, iou_normed)

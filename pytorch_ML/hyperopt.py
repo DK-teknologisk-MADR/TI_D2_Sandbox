@@ -34,7 +34,7 @@ class Hyperopt():
         self.base_params = base_params
         self.iter_chunk_size = iter_chunk_size
         self.output_dir = output_dir
-        self.pruner = SHA(self.max_iter / self.iter_chunk_size, factor=3, topK=3)
+        self.pruner = SHA(self.max_iter / self.iter_chunk_size, factor=3, topK=9)
         self.val_nr = val_nr
         self.result_df = None
         self.fun_val = fun_val

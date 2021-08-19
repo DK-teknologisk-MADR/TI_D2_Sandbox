@@ -22,9 +22,6 @@ tester = Filet_ModelTester3(os.path.join(p1_model_dir,'cfg.yaml'),os.path.join(p
 #UNCOMMENT BELOW AND FILL test_img_path for a sample test
 test_img_path = "/pers_files/Combined_final/Filet/val/robotcell_all1_color_2021-02-05-12-58-34.jpg"
 img = cv2.imread(test_img_path)
-tester.get_key_points(img) #time approx 0.24 s abit slow. Will be better. Maybe.
-
-
 
 
 

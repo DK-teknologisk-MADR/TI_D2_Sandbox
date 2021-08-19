@@ -40,7 +40,6 @@ class ModelTester():
 
     def __call__(self,inputs):
         return self.predictor(inputs)
-
     def get_key_points(self,inputs):
         pred_outputs = self.predictor(inputs)
         return self.post_process(pred_outputs)

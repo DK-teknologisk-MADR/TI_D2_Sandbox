@@ -1,24 +1,18 @@
 import torch
-import sys, os
-
-import torchvision.transforms
-
 import pytorch_ML.networks
 import pytorch_ML.validators
 print(torch.cuda.memory_summary())
 
-import scipy
+from torch.utils.data.dataset import Subset
 from filet.mask_discriminator.hyperopt import Mask_Hyperopt
 import torch.nn as nn
-from filet.mask_discriminator.mask_data_loader import rm_dead_data_and_get_ious, Filet_Seg_Dataset
+from filet.mask_discriminator.mask_data_loader import rm_dead_data_and_get_ious, Filet_Seg_Dataset,Filet_Seg_Dataset_Box
 from detectron2_ML.data_utils import get_file_pairs
 import numpy as np
 import torch.optim as optim
-from pytorch_ML.validators import f1_score
+from pytorch_ML.validators import f1_score,f1_score_neg,mcc_score
 from torch.optim.lr_scheduler import ReduceLROnPlateau , ExponentialLR
-from pytorch_ML.networks import IOU_Discriminator
-from torchvision.transforms import Normalize
-from filet.mask_discriminator.iou_transformations import get_r_mean_std,normalize_ious,rectify_ious
+from filet.mask_discriminator.iou_transformations import get_r_mean_std,normalize_ious,rectify_ious,Rectifier
 import os
 img_dir="/pers_files/Combined_final/Filet"
 data_dir = '/pers_files/mask_data_raw_TV/'
@@ -41,24 +35,42 @@ iou_arr = np.array(list(iou_dict.values()))
 #ty = [Normalize( mean=iou_arr.mean(), std=iou_arr.std())]
 #tx = [Normalize( mean=[0.485, 0.456, 0.406,0], std=[0.229, 0.224, 0.225,1])]
 
-dt = Filet_Seg_Dataset(mask_dir=data_dir, img_dir=img_dir,split=train_split,trs_x= [] , trs_y=[rectify_ious])
-dt_val = Filet_Seg_Dataset(mask_dir=data_dir, img_dir=img_dir,split=val_split,trs_x= [] , trs_y=[rectify_ious])
-import time
+dt = Filet_Seg_Dataset_Box(mask_dir=data_dir, img_dir=img_dir,split=train_split,trs_x= [] , trs_y=[Rectifier(.94,.94)])
+dt_val = Filet_Seg_Dataset_Box(mask_dir=data_dir, img_dir=img_dir,split=val_split,trs_x= [] , trs_y=[Rectifier(.94,.94)])
 
+points_to_keep = [(i,dt.get_raw_y(i)) for i in range(len(dt)) if (dt.get_raw_y(i)<0.8 or dt.get_raw_y(i)>0.94)]
+indices_to_keep = [x for x,y in points_to_keep]
+ys_to_keep = np.array([y for x,y in points_to_keep])
+dt = Subset(dt,indices_to_keep)
+dt_val = Subset(dt_val,[i for i in range(len(dt_val)) if (dt_val.get_raw_y(i)<0.8 or dt_val.get_raw_y(i)>0.94) ])
 
-ious = iou_arr #CHANGE TO DT
-#st_inds = np.argsort(ious)
-#qs = np.arange(0.04,1.0,0.04)[:6]
-quants =np.array([0.8,0.95]) #quants = np.quantile(iou_arr,qs)
+#
+# #TO SHOW:
+# for i in range(len(dt)):
+#     img,target = dt[i]
+#     img = img.permute(1,2,0).numpy()
+#     cv2.imshow("window",img)
+#     cv2.imshow("window2",255*img[:,:,3])
+#     cv2.waitKey()
+#     cv2.destroyAllWindows()
+# import time
+#
+
+quants =np.array([0.8]) #quants = np.quantile(iou_arr,qs)
 #ious.std()
 #np.hstack([quants])
-intervals = np.searchsorted(quants, ious)
+intervals = np.searchsorted(quants, ys_to_keep)
 nrs = np.bincount(intervals)
 weights_pre = nrs[0] / nrs
 weights_pre = weights_pre * (1 / min(weights_pre))
-weights_pre[1] = 0
 print("loader will get weights",weights_pre, "for data between points",quants)
 weights = weights_pre[intervals]
+#st_inds = np.argsort(ious)
+#qs = np.arange(0.04,1.0,0.04)[:6]
+#quants =np.array([0.8,0.95]) #quants = np.quantile(iou_arr,qs)
+#ious.std()
+#np.hstack([quants])
+
 #model_path = "~/Pyscripts/test_folder"
 base_params = {
     "optimizer": {
@@ -71,10 +83,9 @@ base_params = {
     "net_cls": pytorch_ML.networks.IOU_Discriminator_01,
     "net": {'device': 'cuda'}
 }
-
-output_dir =os.path.join(model_path,"classi_net1_TV")
+output_dir =os.path.join(model_path,"classi_net_TV_rect_balanced_mcc_score_fixed")
 os.makedirs(output_dir,exist_ok=False)
-hyper = Mask_Hyperopt(base_lr=0.0005,base_path=model_path,max_iter = 150000,iter_chunk_size = 200,dt= dt,output_dir=output_dir,val_nr=1700, bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 200,dt_wts = weights,fun_val=f1_score)
+hyper = Mask_Hyperopt(base_lr=0.0005,base_path=model_path,max_iter = 150000,iter_chunk_size = 200,dt= dt,output_dir=output_dir,val_nr=1700, bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 200,dt_wts = None,fun_val=mcc_score)
 hyper.hyperopt()
 
 #output_dir =os.path.join(model_path,"classi_net2")

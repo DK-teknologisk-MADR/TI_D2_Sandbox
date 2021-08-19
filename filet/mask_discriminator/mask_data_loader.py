@@ -2,12 +2,13 @@ import numpy as np
 import torch
 from torchvision.transforms import Compose
 import cv2
-from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler,Subset
 import json
 import os
 import copy
 from detectron2_ML.data_utils import get_file_pairs
 from filet.mask_discriminator.transformations import PreProcessor,PreProcessor_Box_Crop
+from torch.utils.data import Subset
 
 #import matplotlib
 #matplotlib.use('TkAgg')
@@ -88,7 +89,7 @@ class Filet_Seg_Dataset_Box(Dataset):
     def __init__(self, mask_dir,img_dir,split, trs_x=[], trs_y=[]):
         self.mask_dict = get_file_pairs(mask_dir,split)
         self.mask_fronts = [key for key in self.mask_dict.keys()]
-        self.img_dir = img_dir
+        self.img_dir = os.path.join(img_dir,split)
         self.prep = PreProcessor_Box_Crop([[250,1024-250],[100,1024-100]],resize_dims=(393,618),pad=35,mean=[0.2010, 0.1944, 0.2488, 0.0000],std=[0.3040, 0.2964, 0.3694, 1])
         self.split = split
         self.trs_y = trs_y
@@ -96,7 +97,7 @@ class Filet_Seg_Dataset_Box(Dataset):
     def __len__(self):
         return len(self.mask_dict)
 
-    def __getitem__(self, item):
+    def get_files(self,item):
         front = self.mask_fronts[item]
         files = self.mask_dict[front]
         for file in files:
@@ -108,6 +109,16 @@ class Filet_Seg_Dataset_Box(Dataset):
                 json_file = os.path.join(self.mask_dir,self.split,file)
             else:
                 pass
+        return mask_file,img_file,json_file
+
+    def get_raw_y(self,item):
+        mask_file,img_file,json_file = self.get_files(item)
+        with open(json_file) as fp:
+            y = json.load(fp)['shapes'][0]['label']
+        return y
+
+    def __getitem__(self, item):
+        mask_file,img_file,json_file = self.get_files(item)
         mask = np.where(cv2.imread(mask_file, cv2.IMREAD_GRAYSCALE)>0,1,0)
         dimh, dimw = mask.shape
         img = cv2.imread(img_file)
@@ -191,9 +202,9 @@ class Filet_Seg_Dataset_Box(Dataset):
 #                 iou
 #         return pic,iou
 #
-def get_loader(dataset,bs,wts =None):
+def get_loader(dataset,bs,wts =None,replacement=True):
     if wts is None:
        wts = np.ones(len(dataset))
-    sampler = WeightedRandomSampler(weights=wts, num_samples=len(dataset), replacement=True)
+    sampler = WeightedRandomSampler(weights=wts, num_samples=len(dataset), replacement=replacement)
     return DataLoader(dataset, batch_size=bs, sampler=sampler, num_workers=0, pin_memory=True)
 

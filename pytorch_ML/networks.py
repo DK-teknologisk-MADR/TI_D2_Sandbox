@@ -79,7 +79,7 @@ class IOU_Discriminator_Sig_MSE(IOU_Discriminator):
         x = super(IOU_Discriminator_Sig_MSE, self).forward(x)
         x = self.sig(x)
         return x
-
+import torch
 
 class IOU_Discriminator_01(nn.Module):
     def __init__(self,backbone = None,two_layer_head = True, device='cuda:0'):

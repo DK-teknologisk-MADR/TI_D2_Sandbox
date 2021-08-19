@@ -38,10 +38,10 @@ class Trainer():
 
 
  
-    def get_loader(self,dt,bs,wts = None):
+    def get_loader(self,dt,bs,wts = None,replacement=True):
         if wts is None:
             wts = np.ones(len(dt))
-        sampler = WeightedRandomSampler(weights=wts, num_samples=len(dt), replacement=True)
+        sampler = WeightedRandomSampler(weights=wts, num_samples=len(dt), replacement=replacement)
         return DataLoader(dt, batch_size=bs, sampler=sampler, pin_memory=True,num_workers=0)
 
     def save_model(self,to_save,file_name = "checkpoint.pth"):

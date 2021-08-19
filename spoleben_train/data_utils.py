@@ -16,6 +16,14 @@ def bbox2(img):
     cmin, cmax = np.where(cols)[0][[0, -1]]
     return rmin, cmin, rmax,cmax
 
+def bbox2_xyxy_abs(img):
+    rows = np.any(img, axis=1)
+    cols = np.any(img, axis=0)
+    rmin, rmax = np.where(rows)[0][[0, -1]]
+    cmin, cmax = np.where(cols)[0][[0, -1]]
+    return cmin,rmin, cmax,rmax
+
+
 def sort_by_prefix(fp):
     #file_ls = ["hallo.jpg","hallo.json","hallo_also.jpg","hallibu_dallibu.jpg"]
     file_ls = os.listdir(fp)
@@ -168,9 +176,9 @@ def get_data_dicts_masks(data_dir,split,file_pairs):
         print(masks.shape)
         objs = []
         for i in range(masks.shape[0]):
-            r1,c1,r2,c2 = bbox2(masks[i])
+            xmin,ymin,xmax,ymax = bbox2_xyxy_abs(masks[i])
             obj = {
-                        "bbox": [r1, c1, r2, c2],
+                        "bbox": [xmin,ymin,xmax,ymax],
                         "bbox_mode": BoxMode.XYXY_ABS,
                         "segmentation": masks_rle[i],
                         "category_id": 0,
