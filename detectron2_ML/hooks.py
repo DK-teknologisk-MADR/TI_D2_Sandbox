@@ -120,9 +120,13 @@ class StopByProgressHook(EarlyStopHookBase):
 
     def before_train(self):
         super().before_train()
-        self.trainer.storage.put_scalar(self.score_storage_key,0,False)
-        self.trainer.storage.put_scalar(f'best_{self.score_storage_key}', 0, False)
-
+        try:
+            self.score_milestone = self.trainer.storage.latest()[f'best_{self.score_storage_key}'][0]
+            self.score_best = self.trainer.storage.latest()[f'best_{self.score_storage_key}'][0]
+            print("StopByProgressHook: Mads Verificer at dette virker, og slet denne print")
+        except:
+            self.trainer.storage.put_scalar(self.score_storage_key,0,False)
+            self.trainer.storage.put_scalar(f'best_{self.score_storage_key}', 0, False)
         self.iter_milestone = self.trainer.iter
     def get_save_name(self):
         return f"{self.save_name}"

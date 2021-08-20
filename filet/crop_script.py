@@ -1,17 +1,19 @@
 import json
-
+import yaml
 import cv2
 import os
 import random
 import re
+import cv2_utils.cv2_utils
 from detectron2_ML.data_utils import get_file_pairs, get_data_dicts
 import detectron2.data.transforms as T
 import torch
 import numpy as np
 from copy import deepcopy
 
-splits = ['train','val','test']
-data_dir = "/pers_files/Combined_final/to_crop"
+splits = [""]#['train','val','test']
+data_dir ="/pers_files/test_files" #"/pers_files/Combined_final/to_crop"
+
 #data_dir = "/pers_files/test_set"
 base_output_dir = f'{data_dir}/output'
 model_name = "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x"
@@ -23,8 +25,8 @@ def get_pairs(split):
     jpg_fronts = [x.split(".")[0] for x in files if x.endswith(".jpg")]
     data_pairs = {x : [x+".jpg" , x + ".json"] for x in jpg_fronts if  x + ".json" in files}
     return data_pairs
-train_pairs = get_pairs('train')
-val_pairs = get_pairs('val')
+#train_pairs = get_pairs('train')
+#val_pairs = get_pairs('val')
 regex_string = r'202[0-9]-'
 
 year_finder = re.compile(regex_string)
@@ -69,6 +71,13 @@ def coco_polys_to_ls_of_arrays(annotations):
 #_ , data_pairs_val = partition_pairs_by_year(val_pairs)
 odd_crops = []
 crop_values = 40,200,910,530,
+def modify_TI_json_metadata_(json_dict,new_name = None):
+    json_dict["imageHeight"] =  crop_values[3]
+    json_dict["imageWidth"] = crop_values[2]
+    if new_name is not None:
+        json_dict["imagePath"] = new_name,
+    return json_dict
+
 def crop_routine():
     trans_split1 = T.CropTransform(x0=63, y0=512, w=898, h=512, orig_h=1024, orig_w=1024)
     trans_split2 = T.CropTransform(x0=63,y0=0, w=898, h=512, orig_h=1024, orig_w=1024)
@@ -88,29 +97,14 @@ def crop_routine():
                 poly_arrs = coco_polys_to_ls_of_arrays(file_dict['annotations'])
                 new_polys = trans.apply_polygons(poly_arrs)
                 new_img = trans.apply_image(img)
-                print(os.path.basename(file_dict['file_name']))
-                print("new poly_len", len(new_polys))
-                print("old poly len", len(json_dict['shapes']))
                 if len(new_polys) == len(json_dict['shapes']):
-                #         isClosed = True
-                #         # Blue color in BGR
-                #         color = (255, 0, 0)
-                #
-                #         # Line thickness of 2 px
-                #         thickness = 2
-                #
-                #         # Using cv2.polylines() method
-                #         # Draw a Blue polygon with
-                #         # thickness of 1 px
-                #         new_polys_cv = [poly.astype('int32') for poly in new_polys]
-                #         poly_overlay = cv2.polylines(new_img.copy(), new_polys_cv,
-                #                               isClosed, color, thickness)
-                #         cv2.imshow('image', poly_overlay)
-                #         for i, poly in enumerate(new_polys):
-                #             print(new_polys[i].tolist())
-                #         cv2.waitKey()
+                    poly_overlay = cv2_utils.cv2_utils.put_polys(new_img[0],new_polys[0])
+                    # cv2.imshow("window",poly_overlay)
+                    # cv2.waitKey()
+                    modify_TI_json_metadata_(json_dict)
+                    json_dict['shapes'] =[{} for _ in range(len(new_polys))]
                     for i,poly in enumerate(new_polys):
-#                            print(new_polys[i].tolist())
+#                       print(new_polys[i].tolist())
                         json_dict['shapes'][i]['points'] = poly.tolist()
 #                            print(json_dict['shapes'][i]['points'])
 #                        get new json file name:
@@ -125,70 +119,70 @@ def crop_routine():
                         json.dump(obj=json_dict, fp=fp, indent=3)
             else: #double case
                 poly_arrs = coco_polys_to_ls_of_arrays(file_dict['annotations'])
-                print("POLY_ARRS",poly_arrs)
                 new_poly_groups = [trans_split1.apply_polygons(poly_arrs),trans_split2.apply_polygons(poly_arrs)]
                 new_imgs = [trans_split1.apply_image(img),trans_split2.apply_image(img)]
-                print(os.path.basename(file_dict['file_name']))
+                front_jpgs = [os.path.basename(file_dict['file_name'])[:-4] + direction + ".jpg" for direction in
+                              ["lower", "upper"]]
                 if len(new_poly_groups[0]) + len(new_poly_groups[1]) == len(json_dict['shapes']):
-                    print("good to go")
 
-                    #
-                    #     isClosed = True
-                    #     # Blue color in BGR
-                    #     color = (255, 0, 0)
-                    #
-                    #     # Line thickness of 2 px
-                    #     thickness = 2
-                    #
-                    #     # Using cv2.polylines() method
-                    #     # Draw a Blue polygon with
-                    #     # thickness of 1 px
-                    #     new_polys_cv = [poly.astype('int32') for poly in new_polys]
-                    #     image = cv2.polylines(new_img.copy(), new_polys_cv,
-                    #                           isClosed, color, thickness)
-                    new_jsons = [deepcopy(json_dict) for _ in range(2)]
+                    new_jsons = [modify_TI_json_metadata_(deepcopy(json_dict),front_jpgs[i]) for i in range(2)]
+                    for i,new_json in enumerate(new_jsons):
+                        new_jsons[i]['shapes'] = [{} for _ in range(len(new_poly_groups[i]))]
                     for lu_id,new_polys in enumerate(new_poly_groups):
                         json_dict = new_jsons[lu_id]
                         for i,poly in enumerate(new_polys):
-                            print(json_dict['shapes'][i]['points'])
-                            json_dict['shapes'][i]['points'] = poly.tolist()
-                            print("CHANGED TO")
-                            print(json_dict['shapes'][i]['points'])
+                    #        print(new_jsons[lu_id]['shapes'][i]['points'])
+
+                            new_jsons[lu_id]['shapes'][i]['points'] = poly.tolist()
+                  #          print("CHANGED TO")
+                  #          print(new_jsons[lu_id]['shapes'][i]['points'])
                     #get new json file name:
-                    front_jpgs = [os.path.basename(file_dict['file_name'])[:-4] + direction + ".jpg" for direction in ["lower","upper"]]
                     front_jsons = [front_jpg[:-4] + ".json" for front_jpg in front_jpgs]
-                    os.path.join(new_image_dir,split,)
                     new_json_names = [os.path.join(new_image_dir,split,front_json) for front_json in front_jsons]
-                    print(new_json_names)
+
+                    plot_polys = [np.array(new_jsons[0]['shapes'][i]['points']) for i in range(len(new_jsons[0]['shapes']))]
+                    poly_overlay = cv2_utils.cv2_utils.put_polys(new_imgs[0],plot_polys)
+#                    print("CV2 INPUT IS",new_poly_groups[0][0].shape)
+#                     cv2.imshow("window",poly_overlay)
+#                     cv2.waitKey()
+#                     poly_overlay = cv2_utils.cv2_utils.put_polys(new_imgs[1], new_poly_groups[1])
+#                     cv2.imshow("window1", poly_overlay)
+#                     cv2.waitKey()
                     for i in range(2):
                         cv2.imwrite(os.path.join(new_image_dir,split,front_jpgs[i]),new_imgs[i])
                         with open(new_json_names[i],"w+") as fp:
                             json.dump(obj=new_jsons[i],fp=fp,indent=3)
+                    for i in range(2):
+                        my_img = cv2.imread(os.path.join(new_image_dir,split,front_jpgs[i]))
+                        with open(new_json_names[i],"r+") as fp:
+                            check_dict = json.load(fp=fp)
+                        polys = [np.array(check_dict['shapes'][j]['points']) for j in range(len(check_dict['shapes']))]
+                        poly_overlay = cv2_utils.cv2_utils.put_polys(my_img, polys)
+                        cv2.imshow(f"window_after_load{i}", poly_overlay)
+                        cv2.waitKey()
 crop_routine()
 
-fp = "/pers_files/Combined_final/to_crop/train/robotcell_all1_color_2021-04-08-10-11-34.jpg"
-img = cv2.imread(fp)[:515,47:1024-47]
-cv2.imshow("double",img)
-cv2.waitKey()
+#fp = "/pers_files/Combined_final/to_crop/train/robotcell_all1_color_2021-04-08-10-11-34.jpg"
+#img = cv2.imread(fp)[:515,47:1024-47]
+#cv2.imshow("double",img)
+#cv2.waitKey()
 
-def ts_to_rgb(ts):
-    return ts.permute()
-front = random.sample(list(data_pairs_2021),1)[0]
-front = random.sample(list(data_pairs_2021),1)[0]
-x = cv2.imread(os.path.join(data_dir,split,front+".jpg"))
-x = cv2.cvtColor(x,cv2.COLOR_BGR2RGB)
-trans = T.CropTransform(40,190,910,530,orig_h=1024,orig_w=1024)
-resize = T.Resize(512,512)
-bright = T.RandomBrightness(0.85,1.2)
-light = T.RandomLighting(0.85,1.2)
-aug = T.AugmentationList([trans,bright,light])
-input = T.AugInput(x[:,:,[2,1,0]])
-#trans = T.CropTransform(40,190,910,530)
-new_img = aug(input)
-new_img = new_img.apply_image(x)
-new_img = new_img.astype('uint8')
-new_img = cv2.cvtColor(new_img,cv2.COLOR_RGB2BGR)
-cv2.imshow("lul",new_img)
-cv2.waitKey()
-
-
+# front = random.sample(list(data_pairs_2021),1)[0]
+# front = random.sample(list(data_pairs_2021),1)[0]
+# x = cv2.imread(os.path.join(data_dir,split,front+".jpg"))
+# x = cv2.cvtColor(x,cv2.COLOR_BGR2RGB)
+# trans = T.CropTransform(40,190,910,530,orig_h=1024,orig_w=1024)
+# resize = T.Resize(512,512)
+# bright = T.RandomBrightness(0.85,1.2)
+# light = T.RandomLighting(0.85,1.2)
+# aug = T.AugmentationList([trans,bright,light])
+# input = T.AugInput(x[:,:,[2,1,0]])
+# #trans = T.CropTransform(40,190,910,530)
+# new_img = aug(input)
+# new_img = new_img.apply_image(x)
+# new_img = new_img.astype('uint8')
+# new_img = cv2.cvtColor(new_img,cv2.COLOR_RGB2BGR)
+# cv2.imshow("lul",new_img)
+# cv2.waitKey()
+#
+#

@@ -1,12 +1,11 @@
 import numpy as np
-import numba
 import cv2
 import matplotlib
 import torchvision.transforms.functional
-
+from cv2_utils.cv2_utils import centroid_of_mask_in_xy
 matplotlib.use('TkAgg')
 import detectron2.data.transforms as T
-from torchvision.transforms import ToTensor,Normalize,Compose
+from torchvision.transforms import ToTensor,Normalize,Compose,RandomAffine,ColorJitter
 from torch.nn import Conv2d
 import torch
 class CropAndResize(T.Augmentation):
@@ -148,6 +147,53 @@ class PreProcessor_Box_Crop():
         return img_full
 #x = PreProcessor_Box_Crop((0,1024,0,1024),(500,500),15,[0,0,0],[1,1,1])
 
+    def get_component_analysis(self, mask):
+        '''
+        returns:mask of biggest component
+        centroids in format (x from left, y from top)
+        largest area in pixel count
+        discard_flag hints whether its too weird to keep.
+        '''
+        discard_flag = False
+        connectivity = 4
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity, cv2.CV_32S)
+        # centroids in x from left, y from top.
+        largest_components = stats[1:, 4].argsort()[::-1] + 1
+        largest_area = stats[largest_components[0], 4]
+        proportions = stats[1:, 4] / largest_area
+        if np.any(np.logical_and(proportions > 0.2, proportions < 1)):
+            discard_flag = True
+        mask = np.where(labels == largest_components[0], 1, 0).astype('uint8')
+        centroids = centroids[largest_components[0]]
+        return mask, centroids, largest_area, discard_flag
+
+
+class PreProcessor_Crop_n_Resize_Box():
+    def __init__(self, resize_dims, pad, mean, std):
+        self.to_ts = ToTensor()
+        self.norm = Normalize(mean=mean, std=std)
+        self.torchvision_transforms = Compose([self.to_ts, self.norm])
+        self.pad = pad
+        self.resize_dims = tuple(resize_dims)
+
+    def preprocess(self, img, raw_mask):
+        '''
+        BGR_IMG
+        '''
+        mask = np.asarray(raw_mask > 0, dtype='uint8')
+        mask, centroids, area, discard_flag = self.get_component_analysis(mask)
+        col,row,w,h = cv2.boundingRect(cv2.findNonZero(mask))
+        rect_crop_dims = max(row-self.pad,0),min(row+h+self.pad,mask.shape[0]),max(col-self.pad,0),min(col+w+self.pad,mask.shape[1])
+        centroids = row + w//2 , col + h // 2
+        cropped_out_img = np.zeros_like(img)
+        crop_img = img[rect_crop_dims[0]:rect_crop_dims[1],rect_crop_dims[2]:rect_crop_dims[3]]
+        mask = mask[rect_crop_dims[0]:rect_crop_dims[1],rect_crop_dims[2]:rect_crop_dims[3]]
+        img_full = np.concatenate([crop_img,mask[:,:,None]],axis=2)
+        img_full = cv2.resize(img_full,(self.resize_dims[1],self.resize_dims[0]))
+        img_full[:,:,3]= np.where(img_full[:,:,3]>0,255,0)
+        img_full = self.torchvision_transforms(img_full)
+        return img_full
+#x = PreProcessor_Box_Crop((0,1024,0,1024),(500,500),15,[0,0,0],[1,1,1])
     def get_component_analysis(self, mask):
         '''
         returns:mask of biggest component

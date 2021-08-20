@@ -86,11 +86,11 @@ class Filet_Seg_Dataset(Dataset):
 
 
 class Filet_Seg_Dataset_Box(Dataset):
-    def __init__(self, mask_dir,img_dir,split, trs_x=[], trs_y=[]):
+    def __init__(self, mask_dir,img_dir,split, trs_x=[], trs_y=[],crop=[[250,1024-250],[100,1024-100]],resize_dims=(393,618),pad=35,mean=[0.2010, 0.1944, 0.2488, 0.0000],std=[0.3040, 0.2964, 0.3694, 1]):
         self.mask_dict = get_file_pairs(mask_dir,split)
         self.mask_fronts = [key for key in self.mask_dict.keys()]
         self.img_dir = os.path.join(img_dir,split)
-        self.prep = PreProcessor_Box_Crop([[250,1024-250],[100,1024-100]],resize_dims=(393,618),pad=35,mean=[0.2010, 0.1944, 0.2488, 0.0000],std=[0.3040, 0.2964, 0.3694, 1])
+        self.prep = PreProcessor_Box_Crop(crop=crop,resize_dims=resize_dims,pad=pad,mean=mean,std=std)
         self.split = split
         self.trs_y = trs_y
         self.mask_dir = mask_dir
@@ -125,7 +125,6 @@ class Filet_Seg_Dataset_Box(Dataset):
 #        t1 = time.time()
         img4d = self.prep.preprocess(img,mask)
 #        t2 = time.time() - t1
-#        print(t2)
         with open(json_file) as fp:
             y = json.load(fp)['shapes'][0]['label']
         for self.tr_y in self.trs_y:

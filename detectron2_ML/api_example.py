@@ -14,7 +14,7 @@ from numpy import random
 from data_utils import get_data_dicts, register_data
 
 splits = ['train','val']
-data_dir = "/pers_files/Combined_final/cropped_filet"
+data_dir = "/pers_files/Combined_final/cropped"
 COCO_dicts = {split: get_data_dicts(data_dir,split) for split in splits } #converting TI-annotation of pictures to COCO annotations.
 data_names = register_data('filet',['train','val'],COCO_dicts,{'thing_classes' : ['filet']}) #register data by str name in D2 api
 output_dir = f'{data_dir}/output_test'
@@ -33,12 +33,12 @@ def initialize_base_cfg(model_name,cfg=None):
     cfg.DATASETS.TEST = (data_names['val'],) # Use this with trainer_cls : TrainerPeriodicEval if you want to do validation every #.TEST.EVAL_PERIOD iterations
     cfg.DATASETS.TEST = []
     cfg.TEST.EVAL_PERIOD = 300 #set >0 to activate evaluation
-    cfg.DATALOADER.NUM_WORKERS = 6 #add more workerss until it gives warnings.
+    cfg.DATALOADER.NUM_WORKERS = 1 #add more workerss until it gives warnings.
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(f'{model_name}.yaml')
-    cfg.SOLVER.IMS_PER_BATCH = 3 #maybe more?
+    cfg.SOLVER.IMS_PER_BATCH = 1 #maybe more?
     cfg.OUTPUT_DIR = f'{output_dir}/{model_name}_output'
     cfg.SOLVER.BASE_LR = 0.005
-    cfg.SOLVER.MAX_ITER = 10000
+    cfg.SOLVER.MAX_ITER = 1000
     cfg.SOLVER.STEPS = [] #cfg.SOLVER.STEPS = [2000,4000] would decay LR by cfg.SOLVER.GAMMA at steps 2000,4000
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256  #(default: 512)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
@@ -46,10 +46,6 @@ def initialize_base_cfg(model_name,cfg=None):
     os.makedirs(f'{output_dir}/{model_name}_output_test',exist_ok=True)
     return cfg
 
-#example input
-#model_name = "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x"
-model_name = 'COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x'
-cfg = initialize_base_cfg(model_name)
 
 
 class D2_hyperopt(D2_hyperopt_Base):
@@ -69,7 +65,10 @@ class D2_hyperopt(D2_hyperopt_Base):
         for trial_id in pruned_ids:
             shutil.rmtree(self.get_trial_output_dir(trial_id))
 
-
+#example input
+#model_name = "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x"
+model_name = 'COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x'
+cfg = initialize_base_cfg(model_name)
 task = 'bbox'
 evaluator = COCOEvaluator(data_names['val'],("bbox", "segm"), False,cfg.OUTPUT_DIR)
 

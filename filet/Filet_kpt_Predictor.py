@@ -41,13 +41,13 @@ class Filet_ModelTester3(ModelTester):
     ''''
     '''
 
-    def __init__(self, cfg_fp, chk_fp, mask_net_chk_fp, p3_kpts_nr=21, p2_object_area_thresh = 22000, device ='cuda:0', print_log = False, pad = 19, record_plots = False,p2_resize_shape = None,p2_n_biggest = None,p2_crop_size = None):
+    def __init__(self, cfg_fp, chk_fp, mask_net_chk_fp, p3_kpts_nr=21, p2_object_area_thresh = 22000, device ='cuda:0', print_log = False, pad = 19,img_size=(1024,1024), record_plots = False,p2_resize_shape = None,p2_n_biggest = None,p2_crop_size = None):
         super().__init__(cfg_fp=cfg_fp, chk_fp=chk_fp,device = device)
         self.p2_resize_shape=(393,618)
         self.n_biggest = 4
         self.print_log = print_log
         self.kpts_nr = p3_kpts_nr
-        self.h,self.w = 1024,1024
+        self.h,self.w = img_size
         self.iou_thresh = 0.7
 #        net = IOU_Discriminator(device = device)
         net = IOU_Discriminator_01(two_layer_head=True,device = device)
@@ -219,15 +219,16 @@ class Filet_ModelTester3(ModelTester):
         self.p2_dataset.set_img_and_masks(inputs,pred_masks_np)
         loader = DataLoader(self.p2_dataset, batch_size=self.n_biggest, shuffle=False, pin_memory=True, drop_last=False, num_workers=0)
         img4d = next(iter(loader))
-        img_np = img4d[:3,:,:].to('cpu')
-        print(img_np.shape)
-        img_np = img_np.permute(0,2,3,1).numpy()
-     #   cv2.imshow("AT PHASE 2",img_np[0])
-     #   cv2.waitKey()
         ind_to_biggest_object = self.phase2(img4d)
 
+        #img_np = img4d[:3,:,:].to('cpu')
+        #print(img_np.shape)
+        #img_np = img_np.permute(0,2,3,1).numpy()
+     #   cv2.imshow("AT PHASE 2",img_np[0])
+     #   cv2.waitKey()
+        mask = self.phase3_preprocess(pred_masks_np[ind_to_biggest_object])
         if not is_empty:
-            kpts = self.phase3(pred_masks[ind_to_biggest_object])
+            kpts = self.phase3(mask)
         else:
             kpts = np.full((2,self.kpts_nr),-1)
 
@@ -248,7 +249,8 @@ class Filet_ModelTester3(ModelTester):
 
         return kpts
 
-
+    def phase3_preprocess(self,mask_np):
+        return torch.tensor(mask_np,device=self.device,requires_grad=False)
 
 class Filet_ModelTester_Aug(Filet_ModelTester3):
     def __init__(self, **kwargs):
@@ -304,7 +306,7 @@ class Filet_ModelTester_Aug(Filet_ModelTester3):
         self.log("phase1: The three largest are " + str(biggest))
 
         #TEST
-        masks_ref_cp = masks_ref.clone()
+#        masks_ref_cp = masks_ref.clone()
         best_mask_indices,vote_nrs,vote_ls = self.get_best_mask_indices(masks_ref,masks_aug)
         best_mask_indices = best_mask_indices
         img_plt = masks_ref[0].cpu().numpy().astype('uint8')
@@ -313,8 +315,7 @@ class Filet_ModelTester_Aug(Filet_ModelTester3):
         #img_plt2 = masks_ref[0].cpu().numpy().astype('uint8')
         #cv2.imshow("AFTER best_mask_indices", 255*img_plt2)
 
-        masks_ref
-        masks_ref_bef_res = masks_ref.clone()
+#        masks_ref_bef_res = masks_ref.clone()
         masks_ref = resize(img=masks_ref, size=[self.h, self.w])
         self.log(f" Phase1: deliveringresult of size{masks_ref.shape}")
         if len(best_mask_indices):
@@ -349,10 +350,10 @@ class Filet_ModelTester_Aug(Filet_ModelTester3):
                 best_instances = raw_output[0]['instances'][has_good_score[0]]
                 best_instances.remove('pred_boxes')
                 best_instances=best_instances[biggest]
-                print("TESTING IS PLOT PRED MASK AND PREDMASKCP SAME")
-                print(torch.all(best_instances.pred_masks == masks_ref_cp))
-                best_instances = best_instances[best_mask_indices]
-                print(torch.all(best_instances.pred_masks == masks_ref_bef_res))
+#                print("TESTING IS PLOT PRED MASK AND PREDMASKCP SAME")
+#                print(torch.all(best_instances.pred_masks == masks_ref_cp))
+#                best_instances = best_instances[best_mask_indices]
+#                print(torch.all(best_instances.pred_masks == masks_ref_bef_res))
 
                 best_instances = best_instances.to('cpu')
                 try:
@@ -403,6 +404,32 @@ class Filet_ModelTester_Aug(Filet_ModelTester3):
 
         return best_vote_indices, vote_nrs,vote_ls
         #self.show_result(masks_ref, masks_aug, vote_ls)
+
+    def phase3_preprocess(self,mask_np):
+        mask, largest_area = self.get_largest_component(mask_np)
+        if self.print_log: print("Phase3 preprocess : AREA of largest component is",largest_area)
+        mask_ts = torch.tensor(mask,device=self.device,requires_grad=False)
+        return mask_ts
+
+    def get_largest_component(self, mask):
+        '''
+        returns:mask of biggest component
+        centroids in format (x from left, y from top)
+        largest area in pixel count
+        discard_flag hints whether its too weird to keep.
+        '''
+#        discard_flag = False
+        connectivity = 4
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity, cv2.CV_32S)
+        # centroids in x from left, y from top.
+        largest_components = stats[1:, 4].argsort()[::-1] + 1
+        largest_area = stats[largest_components[0], 4]
+#        proportions = stats[1:, 4] / largest_area
+#        if np.any(np.logical_and(proportions > 0.2, proportions < 1)):
+#            discard_flag = True
+        mask = np.where(labels == largest_components[0], 1, 0).astype('uint8')
+#        centroids = centroids[largest_components[0]]
+        return mask, largest_area
 
     def augment_img_optics(self,img,inp,aug_id):
         if aug_id % (self.aug_nr//2) == 0:
