@@ -84,18 +84,22 @@ class Filet_Seg_Dataset(Dataset):
         return img4d,y
 
 
-
+#    def __init__(self, mask_dir,img_dir,split, trs_x=[], trs_y=[],crop=[[250,1024-250],[100,1024-100]],resize_dims=(393,618),pad=35,mean=[0.2010, 0.1944, 0.2488, 0.0000],std=[0.3040, 0.2964, 0.3694, 1]):
 class Filet_Seg_Dataset_Box(Dataset):
-    def __init__(self, mask_dir,img_dir,split, trs_x=[], trs_y=[],crop=[[250,1024-250],[100,1024-100]],resize_dims=(393,618),pad=35,mean=[0.2010, 0.1944, 0.2488, 0.0000],std=[0.3040, 0.2964, 0.3694, 1]):
+    def __init__(self, mask_dir,img_dir,split,preprocessor, trs_x=[], trs_y=[]):
         self.mask_dict = get_file_pairs(mask_dir,split)
         self.mask_fronts = [key for key in self.mask_dict.keys()]
         self.img_dir = os.path.join(img_dir,split)
-        self.prep = PreProcessor_Box_Crop(crop=crop,resize_dims=resize_dims,pad=pad,mean=mean,std=std)
+        self.prep = preprocessor
         self.split = split
         self.trs_y = trs_y
         self.mask_dir = mask_dir
     def __len__(self):
         return len(self.mask_dict)
+
+    def set_preprocessor(self,preprocessor):
+        self.prep = preprocessor
+
 
     def get_files(self,item):
         front = self.mask_fronts[item]
