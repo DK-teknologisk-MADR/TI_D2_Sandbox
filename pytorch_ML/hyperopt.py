@@ -78,7 +78,25 @@ class Hyperopt():
         }
         return hyper_objs
 
-
+    def hyper_dict_to_json_parsable_dict(self,hyper):
+        new_dict = {}
+        stack = list(hyper.items())
+        visited = set()
+        while stack:
+            k, v = stack.pop()
+            if isinstance(v, dict):
+                if k not in visited:
+                    stack.extend(v.items())
+            else:
+                try:
+                    test = json.dumps(v)
+                    new_dict[k] = v
+                except TypeError:
+                    new_dict[k] = str(v)
+                except:
+                    raise TypeError("it seems like its not possible to call str on object", v)
+            visited.add(k)
+        return new_dict
 
     def combine_generated_with_base(self,generated_vals):
         #updates
@@ -135,11 +153,14 @@ class Hyperopt():
     def resume_or_initiate_train(self,model_dir=None, max_iter=1, hyper={}, bs=4):
         #TODO: TAKE THIS when merging
         hyper_objs = self.construct_trainer_objs(hyper)
+        if not 'dt' in hyper_objs:
+            hyper_objs['dt'] = self.dt
+        if not 'dt_wts' in hyper_objs:
+            hyper_objs['dt_wts'] = self.dt_wts
         print("resuming training of",os.path.basename(model_dir))
         print("hyper parameters are:")
         print(hyper)
-        trainer = Trainer(dt = self.dt,dt_wts = self.dt_wts,max_iter=max_iter,
-                          output_dir = model_dir,eval_period = self.eval_period,print_period=50,bs=self.bs,dt_val=self.dt_val, fun_val=self.fun_val,
+        trainer = Trainer(max_iter=max_iter,output_dir = model_dir,eval_period = self.eval_period,print_period=50,bs=self.bs,dt_val=self.dt_val, fun_val=self.fun_val,
                           val_nr = self.val_nr,add_max_iter_to_loaded=True,**hyper_objs)
         if model_dir is not None:
             try:

@@ -83,6 +83,8 @@ base_params = {
     "net_cls": pytorch_ML.networks.IOU_Discriminator_01,
     "net": {'device': 'cuda'}
 }
+
+
 output_dir =os.path.join(model_path,"classi_net_TV_rect_balanced_mcc_score_fixed")
 os.makedirs(output_dir,exist_ok=False)
 hyper = Mask_Hyperopt(base_lr=0.0005,base_path=model_path,max_iter = 150000,iter_chunk_size = 200,dt= dt,output_dir=output_dir,val_nr=1700, bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 200,dt_wts = None,fun_val=mcc_score)
