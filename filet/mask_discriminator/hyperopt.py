@@ -10,16 +10,23 @@ class Mask_Hyperopt(Hyperopt):
         '''
         Overloaded from base
         '''
-        resize_choices = [(224,224),(448,224),(448,448),(224,448)]
-        resize_tup = resize_choices[np.random.randint(0,len(resize_choices))]
-        pad_choices = [5*i+20 for i in range(6)]
-        pad = pad_choices[np.random.randint(0,len(resize_choices))]
+        base_resize = (400,620)
+        resize_scales = [0.33,0.5,0.75,1]
+        chosen_resize_scale_index = np.random.randint(0,len(resize_scales))
+        chosen_scale = resize_scales[chosen_resize_scale_index]
+        resize_tup = [int(chosen_scale*base_resize[0]),int(chosen_scale * base_resize[1])]
+        is_resize_sq = np.random.randint(0, 2)
+        if is_resize_sq:
+            resize_tup[0] = ( resize_tup[0] + resize_tup[1] ) // 2
+            resize_tup[1] = resize_tup[0]
+        pad_choices = [5*i+25 for i in range(6)]
+        pad = pad_choices[np.random.randint(0,len(pad_choices))]
         generated_values = {
             "optimizer" : { "lr": self.base_lr * random.uniform(1,100), "momentum": random.uniform(0.1, 0.6)},
 
             "scheduler" : {'gamma' : None},
             "loss" : {},
-            "net" : {'two_layer_head' : random.random()>0.5},
+            "net" : {'two_layer_head' : random.random()>0.5,},
             'resize' : resize_tup,
             'pad' : pad,
         }
