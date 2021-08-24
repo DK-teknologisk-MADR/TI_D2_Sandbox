@@ -65,9 +65,15 @@ class Trainer_With_Early_Stop(TI_Trainer):
     Example of a trainer that applies argumentations at runtime. Argumentations available can be found here:
     https://detectron2.readthedocs.io/en/latest/modules/data_transforms.html
     '''
-    def __init__(self,augmentations,cfg,**params_to_Trainer):
-        self.augmentations=augmentations
+    def __init__(self,cfg,augmentations = None,patience = None,**params_to_Trainer):
+        if augmentations is None:
+            self.augmentations = []
+        else:
+            self.augmentations = augmentations
         self.period_between_evals = cfg.TEST.EVAL_PERIOD
+        if patience is None:
+            patience = self.period_between_evals * 15
+        print("StopBygProgressHooK: Recieved eval period",self.period_between_evals)
         self.top_score_achieved = 0
         super().__init__(cfg=cfg,**params_to_Trainer)
     #overwrites default build_train_loader
@@ -97,3 +103,9 @@ class Trainer_With_Early_Stop(TI_Trainer):
 
     def handle_else(self,**kwargs):
         self.helper_after_train()
+
+
+class Hyper_Trainer(Trainer_With_Early_Stop):
+    def __init__(self,cfg,augmentations = None,**params_to_Trainer):
+        self.patience = 9999999999
+        super().__init__(cfg=cfg,augmentations = augmentations,**params_to_Trainer)

@@ -11,8 +11,8 @@ import torch
 import numpy as np
 from copy import deepcopy
 
-splits = [""]#['train','val','test']
-data_dir ="/pers_files/test_files" #"/pers_files/Combined_final/to_crop"
+splits = ['train','val','test']
+data_dir = "/pers_files/Combined_final/to_crop"
 
 #data_dir = "/pers_files/test_set"
 base_output_dir = f'{data_dir}/output'
@@ -98,9 +98,9 @@ def crop_routine():
                 new_polys = trans.apply_polygons(poly_arrs)
                 new_img = trans.apply_image(img)
                 if len(new_polys) == len(json_dict['shapes']):
-                    poly_overlay = cv2_utils.cv2_utils.put_polys(new_img[0],new_polys[0])
-                    # cv2.imshow("window",poly_overlay)
-                    # cv2.waitKey()
+#                        poly_overlay = cv2_utils.cv2_utils.put_polys(new_img,new_polys)
+#                        cv2.imshow("window",poly_overlay)
+#                        cv2.waitKey()
                     modify_TI_json_metadata_(json_dict)
                     json_dict['shapes'] =[{} for _ in range(len(new_polys))]
                     for i,poly in enumerate(new_polys):
@@ -152,14 +152,14 @@ def crop_routine():
                         cv2.imwrite(os.path.join(new_image_dir,split,front_jpgs[i]),new_imgs[i])
                         with open(new_json_names[i],"w+") as fp:
                             json.dump(obj=new_jsons[i],fp=fp,indent=3)
-                    for i in range(2):
-                        my_img = cv2.imread(os.path.join(new_image_dir,split,front_jpgs[i]))
-                        with open(new_json_names[i],"r+") as fp:
-                            check_dict = json.load(fp=fp)
-                        polys = [np.array(check_dict['shapes'][j]['points']) for j in range(len(check_dict['shapes']))]
-                        poly_overlay = cv2_utils.cv2_utils.put_polys(my_img, polys)
-                        cv2.imshow(f"window_after_load{i}", poly_overlay)
-                        cv2.waitKey()
+#                    for i in range(2):
+#                        my_img = cv2.imread(os.path.join(new_image_dir,split,front_jpgs[i]))
+#                        with open(new_json_names[i],"r+") as fp:
+#                            check_dict = json.load(fp=fp)
+#                        polys = [np.array(check_dict['shapes'][j]['points']) for j in range(len(check_dict['shapes']))]
+#                        poly_overlay = cv2_utils.cv2_utils.put_polys(my_img, polys)
+#                        cv2.imshow(f"window_after_load{i}", poly_overlay)
+#                        cv2.waitKey()
 crop_routine()
 
 #fp = "/pers_files/Combined_final/to_crop/train/robotcell_all1_color_2021-04-08-10-11-34.jpg"

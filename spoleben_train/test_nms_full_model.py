@@ -8,7 +8,7 @@ import json
 import numpy as np
 from skimage.draw import polygon2mask
 #CHANGE THE FOLLOWING TO YOUR PATHS
-p1_model_dir ="/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
+p1_model_dir ="/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)/output3/trials/COCO-InstanceSegmentation"
 p2_model_dir ="/pers_files/mask_models_pad_mask35_TV/classi_net_TV_rect_balanced_mcc_score_fixed/model20"
 
 #dont touch fixed_parameters
@@ -30,7 +30,7 @@ tester = Filet_ModelTester_Aug(cfg_fp= os.path.join(p1_model_dir,'cfg.yaml'),chk
 
 
 
-base_dir = "/pers_files/Combined_final/Filet"
+base_dir = "/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)"
 split = 'val'
 img_dir = os.path.join(base_dir,split)
 plot_dir = os.path.join(base_dir,"plot_phase_1_aug")

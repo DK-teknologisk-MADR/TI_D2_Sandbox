@@ -22,7 +22,7 @@ def set_device(device):
 
 
 class Hyperopt():
-    def __init__(self,base_path, max_iter, dt, iter_chunk_size ,output_dir,bs = 4,base_params = {},dt_val = None,eval_period = 250,dt_wts = None, val_nr = None,fun_val = None):
+    def __init__(self,base_path, max_iter, dt, iter_chunk_size ,output_dir,bs = 4,base_params = {},dt_val = None,eval_period = 250,dt_wts = None, val_nr = None,fun_val = None,pruner=None):
         assert fun_val is not None , "please supply a fun val"
         self.base_path = base_path
         self.max_iter = max_iter
@@ -34,7 +34,10 @@ class Hyperopt():
         self.base_params = base_params
         self.iter_chunk_size = iter_chunk_size
         self.output_dir = output_dir
-        self.pruner = SHA(self.max_iter / self.iter_chunk_size, factor=3, topK=9)
+        if pruner is None:
+            self.pruner = SHA(self.max_iter / self.iter_chunk_size, factor=3, topK=9)
+        else:
+            self.pruner = pruner
         self.val_nr = val_nr
         self.result_df = None
         self.fun_val = fun_val

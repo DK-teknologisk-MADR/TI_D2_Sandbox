@@ -29,11 +29,13 @@ class Rectifier():
             self.upper = below
         else:
             self.upper = upper
-        self.linear_a = 1/(self.upper-self.below)
-        self.linear_b = - self.linear_a * self.below
+        if self.upper > self.below:
+            self.linear_a = 1/(self.upper-self.below)
+            self.linear_b = - self.linear_a * self.below
     def __call__(self, arr):
         iou_normed = np.where(arr > self.upper, 1, arr)
         iou_normed = np.where(iou_normed < self.below, 0, iou_normed)
-        iou_normed = np.where(np.logical_and(iou_normed >= self.below, iou_normed <= self.upper), iou_normed * self.linear_a + self.linear_b, iou_normed)
+        if self.upper > self.below:
+            iou_normed = np.where(np.logical_and(iou_normed >= self.below, iou_normed <= self.upper), iou_normed * self.linear_a + self.linear_b, iou_normed)
         return iou_normed
        # iou_normed = np.where(np.logical_and(iou_normed >= 0.90, iou_normed <= 0.95), iou_normed * 20 - 18, iou_normed)

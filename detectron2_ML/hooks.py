@@ -1,7 +1,9 @@
 from detectron2.engine.hooks import HookBase
 import sys
+import os
 from contextlib import contextmanager
-
+import json
+import traceback
 
 @contextmanager
 def disable_exception_traceback():
@@ -109,7 +111,7 @@ class StopByProgressHook(EarlyStopHookBase):
             self.save()
             if self.score_milestone < score_cur - self.delta_improvement:
                 self.iter_milestone, self.score_milestone = iter, score_cur
-            print(self.__str__())
+                print(self.__str__())
             self.trainer.storage.put_scalar(f'best_{self.score_storage_key}', self.score_best, False)
             print("got from storage:,",self.trainer.storage.latest()[f'best_{self.score_storage_key}'][0])
         self.remaining_patience = (self.patience- (iter- self.iter_milestone))
@@ -120,13 +122,20 @@ class StopByProgressHook(EarlyStopHookBase):
 
     def before_train(self):
         super().before_train()
-        try:
-            self.score_milestone = self.trainer.storage.latest()[f'best_{self.score_storage_key}'][0]
-            self.score_best = self.trainer.storage.latest()[f'best_{self.score_storage_key}'][0]
-            print("StopByProgressHook: Mads Verificer at dette virker, og slet denne print")
-        except:
-            self.trainer.storage.put_scalar(self.score_storage_key,0,False)
-            self.trainer.storage.put_scalar(f'best_{self.score_storage_key}', 0, False)
+        did_load = False
+        if os.path.isfile(os.path.join(self.trainer.cfg.OUTPUT_DIR,'task_best_score.json')):
+            with open(os.path.join(self.trainer.cfg.OUTPUT_DIR,'task_best_score.json')) as fp:
+                for obj in fp:
+                    print("opened_metrics_file")
+                    a_dict = json.loads(obj)
+                    if f'best_{self.score_storage_key}' in a_dict:
+                        self.score_milestone = a_dict[f'best_{self.score_storage_key}']
+                        self.score_best = a_dict[f'best_{self.score_storage_key}']
+                        print("got new milesotne and best score",self.score_milestone,self.score_best)
+                        did_load = True
+    #    print("could not load due to error")
+        self.trainer.storage.put_scalar(self.score_storage_key,0,False)
+        self.trainer.storage.put_scalar(f'best_{self.score_storage_key}', 0, False)
         self.iter_milestone = self.trainer.iter
     def get_save_name(self):
         return f"{self.save_name}"
@@ -143,6 +152,12 @@ class StopByProgressHook(EarlyStopHookBase):
 
         super().after_step()
 
+    def save(self):
+        super().save()
+        with open(os.path.join(self.trainer.cfg.OUTPUT_DIR, 'task_best_score.json'), 'w+') as fp:
+            dict_to_save = {f'best_{self.score_storage_key}': self.score_best, "iteration": self.iter_best}
+            json.dump(dict_to_save, fp)
+
 
     def __str__(self):
         return f'best score:\t{self.score_best}\nbest iter:\t{self.iter_best}\nmilestone score:\t{self.score_milestone}\nmilestone iter:\t{self.iter_milestone}\nRemaining Patience:\t{self.remaining_patience}'
@@ -158,14 +173,6 @@ class StopByProgressHook(EarlyStopHookBase):
 
 
 ##early_stop_trainer(DefaultTrainer)
-
-
-
-
-
-
-
-
 
 
 

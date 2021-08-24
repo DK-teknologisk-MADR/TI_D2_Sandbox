@@ -41,7 +41,7 @@ class Filet_ModelTester3(ModelTester):
     ''''
     '''
 
-    def __init__(self, cfg_fp, chk_fp, mask_net_chk_fp, p3_kpts_nr=21, p2_object_area_thresh = 22000, device ='cuda:0', print_log = False, pad = 19,img_size=(1024,1024), record_plots = False,p2_resize_shape = None,p2_n_biggest = None,p2_crop_size = None):
+    def __init__(self, cfg_fp, chk_fp, mask_net_chk_fp = None, p3_kpts_nr=21, p2_object_area_thresh = 22000, device ='cuda:0', print_log = False, pad = 19,img_size=(1024,1024), record_plots = False,p2_resize_shape = None,p2_n_biggest = None,p2_crop_size = None):
         super().__init__(cfg_fp=cfg_fp, chk_fp=chk_fp,device = device)
         self.p2_resize_shape=(393,618)
         self.n_biggest = 4
@@ -50,8 +50,7 @@ class Filet_ModelTester3(ModelTester):
         self.h,self.w = img_size
         self.iou_thresh = 0.7
 #        net = IOU_Discriminator(device = device)
-        net = IOU_Discriminator_01(two_layer_head=True,device = device)
-        net,_ = try_script_model(net, sample_shape=(self.n_biggest, 4, self.p2_resize_shape[0], self.p2_resize_shape[1]), device=device)
+
         self.totensor = torchvision.transforms.ToTensor()
         self.object_area_thresh = p2_object_area_thresh
         #self.p2_preprocessor = PreProcessor([[250,1024-250],[100,1024-100]],resize_dims=(393,618),pad=35,mean=[0,0,0],std=[1,1,1])
@@ -59,7 +58,11 @@ class Filet_ModelTester3(ModelTester):
         if print_log: print("Filet Init :: device is", device)
         self.plt_img_dict = {}
         self.record_plots = record_plots
-        self.model_tester_mask = Model_Tester_Mask(net, mask_net_chk_fp,device=device)
+        if mask_net_chk_fp is not None:
+            net = IOU_Discriminator_01(two_layer_head=True, device=device)
+            net, _ = try_script_model(net, sample_shape=(
+            self.n_biggest, 4, self.p2_resize_shape[0], self.p2_resize_shape[1]), device=device)
+            self.model_tester_mask = Model_Tester_Mask(net, mask_net_chk_fp,device=device)
         self.device = device
         self.pred_instances = None
         self.p2_dataset = P2_Dataset(self.p2_preprocessor)
@@ -89,6 +92,9 @@ class Filet_ModelTester3(ModelTester):
         if self.record_plots:
             self.pred_instances = pred_output['instances'].to('cpu')
             self.pred_instances.remove('pred_boxes')
+            img_to_plot_raw = self.img_to_plot2.copy()
+            if not 'raw' in self.plt_img_dict:
+                self.plt_img_dict["raw"] = img_to_plot_raw
             img_to_plot = self.img_to_plot2.copy()
             w = Visualizer(img_to_plot, MetadataCatalog.get('filets'), scale=1)
             out2 = w.draw_instance_predictions(self.pred_instances)
@@ -356,13 +362,16 @@ class Filet_ModelTester_Aug(Filet_ModelTester3):
 #                print(torch.all(best_instances.pred_masks == masks_ref_bef_res))
 
                 best_instances = best_instances.to('cpu')
-                try:
-                    gt_masks = gt_masks.transpose(1,2,0)
+                if True:
+                #try:
+                    best_instances.pred_masks.numpy()
+                    gt_masks = gt_masks.transpose(1,2,0).astype('float')
                     gt_masks = self.predictor.aug.get_transform(gt_masks).apply_image(gt_masks)
                     gt_masks = gt_masks.transpose(2,0,1)
                     ious = get_ious(gt_masks,best_instances.pred_masks.numpy())
-                except:
-                    ious = [0,0,0,0]
+#                except:
+#                    print()
+#                    ious = [0,0,0,0]
                 for i in range(1,len(best_mask_indices) + 1):
                     plt_img = img_to_plot_dict[f'img_to_plot{i}']
                     text_string = "iou: {:.2f}".format(float(ious[i-1]))
@@ -469,7 +478,7 @@ class Filet_ModelTester_Aug(Filet_ModelTester3):
     def get_mask_votes(self,masks_ref, masks_aug, th):
         masks_ref_nr = len(masks_ref)
         masks_aug_nr = len(masks_aug)
-        ious = [torch.zeros(masks_aug_nr, device='cuda:0', dtype=torch.float) for i in range(masks_ref_nr)]
+        ious = [torch.zeros(masks_aug_nr, device=self.device, dtype=torch.float) for i in range(masks_ref_nr)]
         for i in range(masks_ref_nr):
             self.compute_ious(masks_ref[i], masks_aug, out=ious[i])
         good_masks = [iou > th for iou in ious]
