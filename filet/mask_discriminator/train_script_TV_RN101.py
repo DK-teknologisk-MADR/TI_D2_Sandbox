@@ -2,7 +2,7 @@ import torch
 import pytorch_ML.networks
 import pytorch_ML.validators
 print(torch.cuda.memory_summary())
-
+from torchvision.models import resnet101
 from torch.utils.data.dataset import Subset
 from filet.mask_discriminator.hyperopt import Mask_Hyperopt
 import torch.nn as nn
@@ -19,7 +19,7 @@ import os
 img_dir="/pers_files/Combined_final/Filet"
 data_dir = '/pers_files/mask_data_raw_TV/'
 train_split = "train"
-model_path = '/pers_files/mask_models_pad_mask_hyper'
+model_path = '/pers_files/mask_models_pad_mask_hyper_RN101'
 val_split = "val"
 
 #os.makedirs(model_path)
@@ -90,22 +90,22 @@ base_params = {
     "scheduler_cls": ExponentialLR,
     "loss_cls": nn.BCEWithLogitsLoss,
     "net_cls": pytorch_ML.networks.IOU_Discriminator_01,
-    "net": {'device': 'cuda:0'}
+    "net": {'device': 'cuda:1','backbone' : 'resnet101' }
 }
 
 
-output_dir =os.path.join(model_path,"classi_net_TV_rect_balanced_mcc_score_fixedf2")
-os.makedirs(output_dir,exist_ok=False)
 max_iter , iter_chunk_size = 150000, 200
-pruner = SHA(max_iter / iter_chunk_size, factor=4, topK=4)
-hyper = Mask_Hyperopt(base_lr=0.0005,base_path=model_path,max_iter = 200000,iter_chunk_size = 200,dt= dt,output_dir=output_dir,val_nr=None, bs = 4,base_params= base_params,dt_val = dt_val,eval_period = 200,dt_wts = None,fun_val=mcc_score,pruner=pruner)
-hyper.hyperopt()
 pruner = SHA(max_iter / iter_chunk_size, factor=2, topK=4)
 output_dir =os.path.join(model_path,"classi_net_TV_rect_balanced_mcc_score_fixedf4")
 os.makedirs(output_dir,exist_ok=False)
-hyper = Mask_Hyperopt(base_lr=0.0005,base_path=model_path,max_iter = 200000,iter_chunk_size = 200,dt= dt,output_dir=output_dir,val_nr=None, bs = 4,base_params= base_params,dt_val = dt_val,eval_period = 200,dt_wts = None,fun_val=mcc_score,pruner=pruner)
+hyper = Mask_Hyperopt(base_lr=0.0005,base_path=model_path,max_iter = max_iter,iter_chunk_size = iter_chunk_size,dt= dt,output_dir=output_dir,val_nr=None, bs = 4,base_params= base_params,dt_val = dt_val,eval_period = 200,dt_wts = None,fun_val=mcc_score,pruner=pruner,gpu_id = 0)
 hyper.hyperopt()
 
+# output_dir =os.path.join(model_path,"classi_net_TV_rect_balanced_mcc_score_fixedf2")
+# os.makedirs(output_dir,exist_ok=False)
+# pruner = SHA(max_iter / iter_chunk_size, factor=4, topK=4)
+# hyper = Mask_Hyperopt(base_lr=0.0005,base_path=model_path,max_iter = max_iter,iter_chunk_size = iter_chunk_size,dt= dt,output_dir=output_dir,val_nr=None, bs = 4,base_params= base_params,dt_val = dt_val,eval_period = 200,dt_wts = None,fun_val=mcc_score,pruner=pruner,gpu_id = 0)
+# hyper.hyperopt()
 
 
 #hyper = md.Hyperopt(model_path,max_iter = 250000,iter_chunk_size = 100,dt= dt,model_cls= IOU_Discriminator,optimizer_cls= optim.SGD,scheduler_cls= ReduceLROnPlateau,loss_cls= nn.BCEWithLogitsLoss,output_dir=model_path, bs = 3,base_params= base_params,dt_val = dt_val,eval_period = 180,dt_wts = weights)

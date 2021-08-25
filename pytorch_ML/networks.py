@@ -2,7 +2,7 @@ from collections import OrderedDict
 import torch
 import numpy as np
 import torchvision.models
-from torchvision.models import wide_resnet50_2,resnet50
+from torchvision.models import wide_resnet50_2,resnet50,resnet101
 from time import time
 import torch.nn as nn
 

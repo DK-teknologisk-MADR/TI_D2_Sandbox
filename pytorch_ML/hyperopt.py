@@ -1,6 +1,7 @@
 import shutil
 
 import numpy as np
+import torch.cuda
 from torch.optim.lr_scheduler import ExponentialLR
 from numpy.random import uniform
 import copy
@@ -15,19 +16,21 @@ from pytorch_ML.trainer import Trainer
 from pytorch_ML.validators import f1_score
 #matplotlib.use('TkAgg')
 #model_resnet = resnet101(True).to(compute_device)
-compute_device = "cuda:0"
-
+compute_device = "cuda:1"
+import json
 def set_device(device):
     compute_device = device
 
 
 class Hyperopt():
-    def __init__(self,base_path, max_iter, dt, iter_chunk_size ,output_dir,bs = 4,base_params = {},dt_val = None,eval_period = 250,dt_wts = None, val_nr = None,fun_val = None,pruner=None):
+    def __init__(self,base_path, max_iter, dt, iter_chunk_size ,output_dir,bs = 4,base_params = {},dt_val = None,eval_period = 250,dt_wts = None, val_nr = None,fun_val = None,pruner=None,gpu_id = 0):
         assert fun_val is not None , "please supply a fun val"
         self.base_path = base_path
         self.max_iter = max_iter
+        set_device('cuda:' + str(gpu_id))
         self.bs = bs
         self.dt = dt
+        self.gpu_id = gpu_id
         self.dt_wts = dt_wts
         self.eval_period = eval_period
         self.dt_val = dt_val
@@ -151,6 +154,7 @@ class Hyperopt():
             self.result_df.loc[pruned,'pruned'] = True
             self.after_prune(pruned)
             self.pruner.print_status()
+            torch.cuda.empty_cache()
         self.result_df.to_csv(os.path.join(self.output_dir,"result.csv"))
 
     def resume_or_initiate_train(self,model_dir=None, max_iter=1, hyper={}, bs=4):
@@ -164,7 +168,7 @@ class Hyperopt():
         print("hyper parameters are:")
         print(hyper)
         trainer = Trainer(max_iter=max_iter,output_dir = model_dir,eval_period = self.eval_period,print_period=50,bs=self.bs,dt_val=self.dt_val, fun_val=self.fun_val,
-                          val_nr = self.val_nr,add_max_iter_to_loaded=True,**hyper_objs)
+                          val_nr = self.val_nr,add_max_iter_to_loaded=True,**hyper_objs,gpu_id=self.gpu_id)
         if model_dir is not None:
             try:
                 trainer.load(os.path.join(model_dir,"checkpoint.pth"))

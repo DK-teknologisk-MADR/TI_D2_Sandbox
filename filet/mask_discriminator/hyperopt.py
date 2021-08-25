@@ -10,16 +10,23 @@ class Mask_Hyperopt(Hyperopt):
         '''
         Overloaded from base
         '''
-        resize_choices = [(224,224),(448,224),(448,448),(224,448)]
-        resize_tup = resize_choices[np.random.randint(0,len(resize_choices))]
-        pad_choices = [5*i+20 for i in range(6)]
-        pad = pad_choices[np.random.randint(0,len(resize_choices))]
+        base_resize = (400,620)
+        resize_scales = [0.33,0.5,0.75,1]
+        chosen_resize_scale_index = np.random.randint(0,len(resize_scales))
+        chosen_scale = resize_scales[chosen_resize_scale_index]
+        resize_tup = [int(chosen_scale*base_resize[0]),int(chosen_scale * base_resize[1])]
+        is_resize_sq = np.random.randint(0, 2)
+        if is_resize_sq:
+            resize_tup[0] = ( resize_tup[0] + resize_tup[1] ) // 2
+            resize_tup[1] = resize_tup[0]
+        pad_choices = [5*i+25 for i in range(6)]
+        pad = pad_choices[np.random.randint(0,len(pad_choices))]
         generated_values = {
             "optimizer" : { "lr": self.base_lr * random.uniform(1,100), "momentum": random.uniform(0.1, 0.6)},
 
             "scheduler" : {'gamma' : None},
             "loss" : {},
-            "net" : {'two_layer_head' : random.random()>0.5},
+            "net" : {'two_layer_head' : random.random()>0.5,},
             'resize' : resize_tup,
             'pad' : pad,
         }
@@ -37,4 +44,5 @@ class Mask_Hyperopt(Hyperopt):
         prep = PreProcessor_Crop_n_Resize_Box(resize_dims=hyper['resize'],pad=hyper['pad'],mean=[0.2010, 0.1944, 0.2488, 0.0000],std=[0.224, 0.224, 0.224, 1])
         dt.dataset.set_preprocessor(prep)
         hyper_objs['dt'] = dt
+
         return hyper_objs
