@@ -5,7 +5,7 @@ import torchvision.transforms.functional
 from cv2_utils.cv2_utils import centroid_of_mask_in_xy
 matplotlib.use('TkAgg')
 import detectron2.data.transforms as T
-from torchvision.transforms import ToTensor,Normalize,Compose,RandomAffine,ColorJitter
+from torchvision.transforms import ToTensor,Normalize,Compose,RandomHorizontalFlip,RandomVerticalFlip
 from torch.nn import Conv2d
 import torch
 class CropAndResize(T.Augmentation):

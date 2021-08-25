@@ -59,14 +59,28 @@ class Trainer():
         #   for key,value in state.items():
         #       torch.save(value,"/pers_files/test_stuff/" + key)
 
-    def load(self, filepath):
+    def load(self, filepath,skip = None):
+        if skip is None:
+            skip = []
         # Note: Input model & optimizer should be pre-defined.  This routine only updates their states.
         if os.path.isfile(filepath):
             print("=> loading checkpoint '{}'".format(filepath))
             ckpt_dict = torch.load(filepath)
-            self.net.load_state_dict(ckpt_dict['state_dict'])
-            self.optimizer.load_state_dict(ckpt_dict['optimizer'])
-            self.scheduler.load_state_dict(ckpt_dict['scheduler'])
+            if not 'net' in skip:
+                try:
+                    self.net.load_state_dict(ckpt_dict['state_dict'])
+                except:
+                    print(f"warning: did not load network state_dict from{filepath} is this on purpose?")
+            if not 'optimizer' in skip:
+                try:
+                    self.optimizer.load_state_dict(ckpt_dict['optimizer'])
+                except:
+                    print(f"warning: did not load optimizer state_dict from{filepath} is this on purpose?")
+            if not 'scheduler' in skip:
+                try:
+                    self.scheduler.load_state_dict(ckpt_dict['scheduler'])
+                except:
+                    print(f"warning: did not load scheduler state_dict from{filepath} is this on purpose?")
             self.itr = ckpt_dict['itr']
             if self.add_max_iter_to_loaded:
                 self.max_iter += self.itr
@@ -101,11 +115,11 @@ class Trainer():
                     loss.backward()
                     self.optimizer.step()
                     self.optimizer.zero_grad()
-                    self.scheduler.step()
                 time_end = time.time()
                 if self.itr % self.eval_period == 0 and self.itr > 0 :
                     self.val_and_maybe_save('best_model.pth')
                 timer += time_end-time_start
+                self.scheduler.step(self.best_val_score)
                 # log
                 if self.itr % self.print_period == 0:
                     print_str = f"time  / iter {timer / self.print_period}, iter is {self.itr}, lr is {self.optimizer.param_groups[0]['lr']}, memory allocated is {torch.cuda.memory_allocated(self.gpu_id)}"

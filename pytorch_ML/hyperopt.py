@@ -1,6 +1,7 @@
 import shutil
 
 import numpy as np
+import torch.cuda
 from torch.optim.lr_scheduler import ExponentialLR
 from numpy.random import uniform
 import copy
@@ -153,6 +154,7 @@ class Hyperopt():
             self.result_df.loc[pruned,'pruned'] = True
             self.after_prune(pruned)
             self.pruner.print_status()
+            torch.cuda.empty_cache()
         self.result_df.to_csv(os.path.join(self.output_dir,"result.csv"))
 
     def resume_or_initiate_train(self,model_dir=None, max_iter=1, hyper={}, bs=4):
