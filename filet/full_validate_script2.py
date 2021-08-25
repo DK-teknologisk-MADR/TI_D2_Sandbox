@@ -10,7 +10,7 @@ from detectron2_ML.data_utils import get_file_pairs
 seg_model_dir ="/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
 seg_model_fp = os.path.join(seg_model_dir,'best_model.pth')
 seg_model_cfg_fp = os.path.join(seg_model_dir,'cfg.yaml')
-discriminator_dir = "/pers_files/mask_models_pad_mask35_TV/classi_net_TV_rect_balanced_mcc_score_fixed/model20"
+discriminator_dir = "/pers_files/mask_models_pad_mask_hyper/classi_net_TV_rect_balanced_mcc_score_fixedf4/model86/trained_model"
 #internal parameters. Do not touch this.
 pic_dim = 1024
 p2_crop_size = [[200, pic_dim - 200], [100, pic_dim - 100]]
@@ -20,7 +20,7 @@ p2_resize_shape = (693,618)
 # - ensure picture is BGR, uint8 (default when you cv2.imread() )
 #output is np.array with shape p3_kpts_nr x 2
 
-tester = Filet_ModelTester_Aug(cfg_fp= seg_model_cfg_fp,chk_fp= seg_model_fp,mask_net_chk_fp=os.path.join(discriminator_dir,"best_model.pth"),p3_kpts_nr=21,p2_crop_size=p2_crop_size,p2_resize_shape = p2_resize_shape,print_log=True,record_plots=True,device='cuda:0')
+tester = Filet_ModelTester_Aug(cfg_fp= seg_model_cfg_fp,chk_fp= seg_model_fp,mask_net_chk_fp=os.path.join(discriminator_dir,"best_model.pth"),p3_kpts_nr=21,print_log=True,record_plots=True,device='cuda:0')
 
 
 #img = cv2.imread("path/to/example/picture.jpg")
@@ -30,12 +30,14 @@ tester = Filet_ModelTester_Aug(cfg_fp= seg_model_cfg_fp,chk_fp= seg_model_fp,mas
 base_dir = "/pers_files/Combined_final/Filet"
 split = 'val'
 os.listdir(base_dir)
-plot_dir = os.path.join(base_dir, "viz_balanced_mcc")
+plot_dir = os.path.join(base_dir, "viz_balanced_mcc2")
 os.makedirs(plot_dir, exist_ok=True)
 img_dir = os.path.join(base_dir,split)
 #df = pd.read_csv("/pers_files/mask_models_pad_mask19/MSE_net/" +  '/result.csv')
 get_file_pairs(img_dir,"",sorted=True)
 pairs = {file[:-4] : file for file in os.listdir(img_dir) if file.endswith(".jpg")}
+pairs = {key: val for key,val in pairs.items()}
+
 for front, ls in pairs.items():
     print("TREATING",front)
     img_name = front + ".jpg"

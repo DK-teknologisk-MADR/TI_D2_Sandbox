@@ -47,12 +47,11 @@ base_prep = PreProcessor_Crop_n_Resize_Box(resize_dims=(393,618),pad=35,mean=[0.
 dt = Filet_Seg_Dataset_Box(mask_dir=data_dir, img_dir=img_dir,split=train_split,preprocessor=base_prep , trs_y=[Rectifier(.92,.92)])
 dt_val = Filet_Seg_Dataset_Box(mask_dir=data_dir, img_dir=img_dir,split=val_split,preprocessor=base_prep , trs_y=[Rectifier(.92,.92)])
 
-points_to_keep = [(i,dt.get_raw_y(i)) for i in range(len(dt)) if (dt.get_raw_y(i)<0.80 or dt.get_raw_y(i)>0.92)]
+points_to_keep = [(i,dt.get_raw_y(i)) for i in range(len(dt)) if (dt.get_raw_y(i)<0.84 or dt.get_raw_y(i)>0.92)]
 indices_to_keep = [x for x,y in points_to_keep]
 ys_to_keep = np.array([y for x,y in points_to_keep])
 dt = Subset(dt,indices_to_keep)
-dt_val = Subset(dt_val,[i for i in range(len(dt_val)) if (dt_val.get_raw_y(i)<0.85 or dt_val.get_raw_y(i)>0.92) ])
-
+dt_val = Subset(dt_val,[i for i in range(len(dt_val)) if (dt_val.get_raw_y(i)<0.84 or dt_val.get_raw_y(i)>0.92) ])
 #
 # #TO SHOW:
 # for i in range(len(dt)):
@@ -90,13 +89,13 @@ base_params = {
     "scheduler_cls": ExponentialLR,
     "loss_cls": nn.BCEWithLogitsLoss,
     "net_cls": pytorch_ML.networks.IOU_Discriminator_01,
-    "net": {'device': 'cuda:1','backbone' : 'resnet101' }
+    "net": {'device': 'cuda:1','backbone' : 'resnet101'}
 }
 
 
-max_iter , iter_chunk_size = 150000, 200
-pruner = SHA(max_iter / iter_chunk_size, factor=2, topK=4)
-output_dir =os.path.join(model_path,"classi_net_TV_rect_balanced_mcc_score_fixedf4")
+max_iter , iter_chunk_size = 300000, 200
+pruner = SHA(max_iter / iter_chunk_size, factor=3, topK=3)
+output_dir =os.path.join(model_path,"classi_net_TV_rect_balanced_mcc_score_fixedf2")
 os.makedirs(output_dir,exist_ok=False)
 hyper = Mask_Hyperopt(base_lr=0.0005,base_path=model_path,max_iter = max_iter,iter_chunk_size = iter_chunk_size,dt= dt,output_dir=output_dir,val_nr=None, bs = 4,base_params= base_params,dt_val = dt_val,eval_period = 200,dt_wts = None,fun_val=mcc_score,pruner=pruner,gpu_id = 0)
 hyper.hyperopt()

@@ -8,14 +8,13 @@ import json
 import numpy as np
 from skimage.draw import polygon2mask
 #CHANGE THE FOLLOWING TO YOUR PATHS
-p1_model_dir ="/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)/output3/trials/COCO-InstanceSegmentation"
+p1_model_dir ="/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)/output3/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_12_output"
 p2_model_dir ="/pers_files/mask_models_pad_mask35_TV/classi_net_TV_rect_balanced_mcc_score_fixed/model20"
 
 #dont touch fixed_parameters
-fixed_parameters = { "p2_crop_size" : [[200, 1024 - 200], [100, 1024 - 100]] , "p2_resize_shape" : (693,618)}
-kpts_out = 21 #feel free to change this
+kpts_out = 9 #feel free to change this
 
-tester = Filet_ModelTester_Aug(cfg_fp= os.path.join(p1_model_dir,'cfg.yaml'),chk_fp = os.path.join(p1_model_dir,'best_model.pth'),mask_net_chk_fp = os.path.join(p2_model_dir,"best_model.pth"),p3_kpts_nr=kpts_out,p2_crop_size=fixed_parameters["p2_crop_size"],p2_resize_shape = fixed_parameters["p2_resize_shape"],device='cuda:0',record_plots=True)
+tester = Filet_ModelTester_Aug(cfg_fp= os.path.join(p1_model_dir,'cfg.yaml'),chk_fp = os.path.join(p1_model_dir,'best_model.pth'),mask_net_chk_fp = os.path.join(p2_model_dir,"best_model.pth"),p3_kpts_nr=kpts_out,device='cuda:0',record_plots=True)
 #use method .get_key_points(img) for getting keypoints.
 #preprocessing before inserting into model:
 #  -crop / resize to 1024/1024.

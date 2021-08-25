@@ -73,6 +73,7 @@ class Hyperopt():
         '''
         net = hyper["net_cls"](**hyper['net'])
         optimizer = hyper["optimizer_cls"](net.parameters(),**hyper["optimizer"])
+        print(optimizer.state_dict)
         scheduler = hyper["scheduler_cls"](optimizer,**hyper["scheduler"])
         loss_fun = hyper['loss_cls'](**hyper['loss'])
         fun_val = self.fun_val

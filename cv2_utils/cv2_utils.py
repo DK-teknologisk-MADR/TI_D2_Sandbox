@@ -58,3 +58,31 @@ def tensor_pic_to_imshow_np(tens_inp,mask=False):
     else:
         raise ValueError("weird picture of shape",tens_inp.shape)
     return tens
+
+def get_M_for_mask_balance(mask,balance='width'):
+    #cv2.imshow("orig",mask)
+    coords = cv2.findNonZero(mask)
+    p1,wh,angle = cv2.minAreaRect(coords)
+    print('got angle',angle)
+    if wh[0]<wh[1]:
+        print(p1,wh)
+        angle = angle -90
+    print('and_after balance angle is',angle)
+
+    center = centroid_of_mask_in_xy(mask)
+    M = cv2.getRotationMatrix2D(center=center,angle=angle,scale=1)
+    return M
+#M = get_M_for_mask_balance(cc)
+
+#mask_new = cv2.warpAffine(cc, M=M, dsize=cc.shape)
+#cv2.imshow("lol", mask_new)
+#M_inv = cv2.invertAffineTransform(M,mask_new)
+#mask_back = cv2.warpAffine(mask_new,M=M_inv,dsize=cc.shape)
+#cv2.imshow("lol2", mask_back)
+
+def warpAffineOnPts(pts,M):
+    if M.shape[1] == 3:
+        ones = np.ones(shape=(len(pts),1))
+        pts = np.hstack([pts,ones])
+
+    return M.dot(pts.transpose()).transpose()

@@ -89,6 +89,8 @@ class IOU_Discriminator_01(nn.Module):
         '''
         if backbone is None:
             backbone = wide_resnet50_2(pretrained=False)
+        elif backbone=="resnet101":
+            backbone = resnet101(pretrained=False)
         weight = backbone.conv1.weight.clone()
         backbone.conv1 = nn.Conv2d(4, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         backbone.fc = nn.Identity()

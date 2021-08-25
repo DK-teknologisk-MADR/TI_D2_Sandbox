@@ -115,11 +115,11 @@ class Trainer():
                     loss.backward()
                     self.optimizer.step()
                     self.optimizer.zero_grad()
+                    self.scheduler.step()
                 time_end = time.time()
                 if self.itr % self.eval_period == 0 and self.itr > 0 :
                     self.val_and_maybe_save('best_model.pth')
                 timer += time_end-time_start
-                self.scheduler.step(self.best_val_score)
                 # log
                 if self.itr % self.print_period == 0:
                     print_str = f"time  / iter {timer / self.print_period}, iter is {self.itr}, lr is {self.optimizer.param_groups[0]['lr']}, memory allocated is {torch.cuda.memory_allocated(self.gpu_id)}"
