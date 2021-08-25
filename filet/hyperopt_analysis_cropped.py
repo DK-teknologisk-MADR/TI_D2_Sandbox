@@ -14,29 +14,27 @@ from detectron2_ML.data_utils import get_data_dicts,register_data
 
 
 pd.set_option('display.max_columns', None)
-data_dir = "/pers_files/Combined_final/Filet"
-input_dir1 = f'{data_dir}/output'
-input_dir2 = f'{data_dir}/output2'
-model_name_base = "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x"
+data_dir = "/pers_files/Combined_final/cropped"
+input_dir = f'{data_dir}/output'
+model_name_base = "COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x"
 output_dir = os.path.join(data_dir,'output_train')
 os.makedirs(output_dir,exist_ok=True)
 splits = ['train','val']
-data_dir = "/pers_files/Combined_final/Filet"
+#data_dir = "/pers_files/Combined_final/Filet"
 COCO_dicts = {split: get_data_dicts(data_dir,split) for split in splits } #converting TI-annotation of pictures to COCO annotations.
 data_names = register_data('filet',['train','val'],COCO_dicts,{'thing_classes' : ['filet']}) #register data by str name in D2 api
-model_name = "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x"
+model_name = "COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x"
 
 dfs = []
-for i, input_dir in enumerate([input_dir1,input_dir2]):
-    files = os.listdir(input_dir)
-    for str in files:
-        if str.endswith(".csv"):
-            df = pd.read_csv(os.path.join(input_dir,str))
-            df['round']= i
-            dfs.append(df)
+
+files = os.listdir(input_dir)
+for str in files:
+    if str.endswith(".csv"):
+        df = pd.read_csv(os.path.join(input_dir,str))
+#        df['round']= i
+        dfs.append(df)
 df = pd.concat(dfs,axis=0,ignore_index=False)
 df = df.iloc[:,1:]
-print()
 df_alive =df.loc[np.logical_not(df['pruned']),:]
 df_alive = df_alive.sort_values(by="score")
 print(df_alive)
@@ -90,25 +88,28 @@ df_alive.to_csv(os.path.join(output_dir,'pd_result_pre.csv'))
 #     def handle_else(self,**kwargs):
 #         self.helper_after_train()
 #
-def do_train(augmentations,cfg):
-    trainer = Trainer_With_Early_Stop(augmentations=augmentations,patience=, cfg=cfg)
+def do_train(augmentations,cfg,eval_period):
+    trainer = Trainer_With_Early_Stop(augmentations=augmentations,patience=20*eval_period, cfg=cfg)
     trainer.resume_or_load(resume=True)
     trainer.train()
     return trainer.top_score_achieved[0]
 
 for i in range(1,df_alive.shape[0]):
+    eval_period = 250
     model_specs = df_alive.iloc[i,:]
-    output_dir = input_dir1 if model_specs['round']== 0 else input_dir2
+    output_dir = input_dir
     model_name = f"{model_name_base}_{model_specs.name}_output"
     cfg_dir =  os.path.join(data_dir,output_dir,'trials',model_name,'cfg.yaml')
     cfg = get_cfg()
     cfg.merge_from_file(cfg_dir)
     cfg.SOLVER.STEPS = (6000,12000,18000,24000,30000,)
     cfg.SOLVER.GAMMA = 0.75
-    cfg.TEST.EVAL_PERIOD = 250
+    cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR,"best_model.pth")
+    cfg.TEST.EVAL_PERIOD = eval_period
+#    os.makedirs(cfg.OUTPUT_DIR)
     cfg.DATASETS.TEST = ('filet_val',)
     cfgs.append(cfg)
-    df_alive.iloc[i,-1] = do_train(augmentations,cfg)
+    df_alive.iloc[i,-1] = do_train(augmentations,cfg,eval_period)
     torch.cuda.empty_cache()
     gc.collect()
 

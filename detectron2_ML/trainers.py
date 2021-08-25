@@ -72,7 +72,9 @@ class Trainer_With_Early_Stop(TI_Trainer):
             self.augmentations = augmentations
         self.period_between_evals = cfg.TEST.EVAL_PERIOD
         if patience is None:
-            patience = self.period_between_evals * 15
+            self.patience = self.period_between_evals * 15
+        else:
+            self.patience = patience
         print("StopBygProgressHooK: Recieved eval period",self.period_between_evals)
         self.top_score_achieved = 0
         super().__init__(cfg=cfg,**params_to_Trainer)
@@ -91,7 +93,7 @@ class Trainer_With_Early_Stop(TI_Trainer):
 
     def build_hooks(self):
         res = super().build_hooks()
-        res.append(StopByProgressHook(patience=25 * self.period_between_evals, delta_improvement=0.5, score_storage_key='segm/AP', save_name_base="best_model"))
+        res.append(StopByProgressHook(patience=self.patience, delta_improvement=0.5, score_storage_key='segm/AP', save_name_base="best_model"))
         print("BUILDING THESE HOOKS")
         return res
 
