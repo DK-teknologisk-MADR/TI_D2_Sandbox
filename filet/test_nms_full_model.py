@@ -10,20 +10,18 @@ from skimage.draw import polygon2mask
 #CHANGE THE FOLLOWING TO YOUR PATHS
 
 class kpt_Eval():
-    def __init__(self,p1_model_dir,base_dir,split,plot_dir,device = 'cuda:1',save_plots = True,mask_encoding = 'poly'):
+    def __init__(self,p1_model_dir,base_dir,split,plot_dir,device = 'cuda:1',save_plots = True,mask_encoding = 'poly',**kwargs_to_model_tester):
         self.save_plots = save_plots
         self.device = device
         self.p1_model_dir = p1_model_dir
         #p1_model_dir ="/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
         self.p2_model_dir ="/pers_files/mask_models_pad_mask35_TV/classi_net_TV_rect_balanced_mcc_score_fixed/model20" #CHANGE THIS TO DUMMY MODEL
-        self.tester = Filet_ModelTester_Aug(cfg_fp= os.path.join(self.p1_model_dir,'cfg.yaml'),chk_fp = os.path.join(self.p1_model_dir,'best_model.pth'),device=device,record_plots=True,print_log=True,img_size=(300,300),skip_phase2=True,p3_kpts_nr=7,kpts_to_plot=[3])
+        self.tester = Filet_ModelTester_Aug(cfg_fp= os.path.join(self.p1_model_dir,'cfg.yaml'),chk_fp = os.path.join(self.p1_model_dir,'best_model.pth'),device=device,record_plots=True,print_log=True,skip_phase2=True,p3_kpts_nr=7,kpts_to_plot=[3],**kwargs_to_model_tester)
         self.base_dir = base_dir
         self.split = split
         self.plot_dir = plot_dir
         self.mask_encoding = mask_encoding
     #dont touch fixed_parameters
-    fixed_parameters = { "p2_crop_size" : [[200, 1024 - 200], [100, 1024 - 100]] , "p2_resize_shape" : (693,618)}
-    kpts_out = 9
     #use method .get_key_points(img) for getting keypoints.
     #preprocessing before inserting into model:
     #  -crop / resize to 1024/1024.
@@ -93,11 +91,3 @@ class kpt_Eval():
             self.eval_on_picture(front,file_fps,plot_fp=plot_fp,phase='all')
 
 
-
-p1_model_dir = '/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)/output3/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_12_output/'
-base_dir = '/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)'
-split='val'
-plot_dir = os.path.join(base_dir,'plots',split)
-os.makedirs(plot_dir,exist_ok=True)
-evaluator = kpt_Eval(p1_model_dir,base_dir=base_dir,split=split,plot_dir=plot_dir,device='cuda:1',mask_encoding='bit_mask')
-evaluator.evaluate_on_split()
