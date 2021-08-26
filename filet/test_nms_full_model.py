@@ -10,14 +10,15 @@ from skimage.draw import polygon2mask
 #CHANGE THE FOLLOWING TO YOUR PATHS
 
 class kpt_Eval():
-    def __init__(self,p1_model_dir,base_dir,split,plot_dir,device = 'cuda:1',save_plots = True,mask_encoding = 'poly',**kwargs_to_model_tester):
+    def __init__(self,p1_model_dir,base_dir,split,plot_dir,img_size = None,device = 'cuda:1',save_plots = True,mask_encoding = 'poly',**kwargs_to_model_tester):
         self.save_plots = save_plots
         self.device = device
         self.p1_model_dir = p1_model_dir
         #p1_model_dir ="/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
         self.p2_model_dir ="/pers_files/mask_models_pad_mask35_TV/classi_net_TV_rect_balanced_mcc_score_fixed/model20" #CHANGE THIS TO DUMMY MODEL
-        self.tester = Filet_ModelTester_Aug(cfg_fp= os.path.join(self.p1_model_dir,'cfg.yaml'),chk_fp = os.path.join(self.p1_model_dir,'best_model.pth'),device=device,record_plots=True,print_log=True,skip_phase2=True,p3_kpts_nr=7,kpts_to_plot=[3],**kwargs_to_model_tester)
+        self.tester = Filet_ModelTester_Aug(cfg_fp= os.path.join(self.p1_model_dir,'cfg.yaml'),chk_fp = os.path.join(self.p1_model_dir,'best_model.pth'),img_size=img_size,device=device,record_plots=True,print_log=True,**kwargs_to_model_tester)
         self.base_dir = base_dir
+        self.img_size = img_size
         self.split = split
         self.plot_dir = plot_dir
         self.mask_encoding = mask_encoding
@@ -41,13 +42,14 @@ class kpt_Eval():
             fig, axes = plt.subplots(3, 3)
             for i, item in enumerate(self.tester.plt_img_dict.items()):
                 name, plot_img = item
-                plot_img = cv2.resize(plot_img, (2048, 2048))
+                print("kpt_eval : plotting",plot_img.shape)
+                plot_img = cv2.resize(plot_img, (2*self.img_size[1], 2*self.img_size[0]))
                 axarr = plt.subplot(gs1[i])
                 axarr.imshow(plot_img)
                 axarr.set_xticklabels([])
                 axarr.set_yticklabels([])
                 axarr.set_aspect('equal')
-            plt.savefig(save_name, dpi=200)
+            plt.savefig(save_name, dpi=300)
             plt.close(fig)
         else:
             print("skipped plotting ",save_name, "to avoid overwriting")
@@ -61,9 +63,9 @@ class kpt_Eval():
             json_fp = next((x for x in file_ls if x.endswith(".json")))
             with open(json_fp,"r") as fp:
                 gt_dict = json.load(fp)
-            masks = np.zeros((len(gt_dict['shapes']),1024,1024))
+            masks = np.zeros((len(gt_dict['shapes']),self.img_size[0],self.img_size[1]))
             for i in range(len(gt_dict['shapes'])):
-                masks[i] = polygon2mask((1024, 1024), np.flip(np.array(gt_dict['shapes'][i]['points']), axis=1))
+                masks[i] = polygon2mask(self.img_size, np.flip(np.array(gt_dict['shapes'][i]['points']), axis=1))
         else:
             assert self.mask_encoding == 'bit_mask'
             np_file = next((x for x in file_ls if x.endswith(".npy")))

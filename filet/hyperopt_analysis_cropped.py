@@ -102,10 +102,12 @@ for i in range(1,df_alive.shape[0]):
     cfg_dir =  os.path.join(data_dir,output_dir,'trials',model_name,'cfg.yaml')
     cfg = get_cfg()
     cfg.merge_from_file(cfg_dir)
+    cfg.SOLVER.MAX_ITER = 40000
     cfg.SOLVER.STEPS = (6000,12000,18000,24000,30000,)
     cfg.SOLVER.GAMMA = 0.75
     cfg.MODEL.WEIGHTS = os.path.join(cfg.OUTPUT_DIR,"best_model.pth")
     cfg.TEST.EVAL_PERIOD = eval_period
+    cfg.MODEL.DEVICE = 'cuda:1'
 #    os.makedirs(cfg.OUTPUT_DIR)
     cfg.DATASETS.TEST = ('filet_val',)
     cfgs.append(cfg)
