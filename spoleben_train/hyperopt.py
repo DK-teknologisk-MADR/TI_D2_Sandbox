@@ -38,7 +38,7 @@ def initialize_base_cfg(model_name,cfg=None):
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(f'{model_name}.yaml')
     cfg.SOLVER.IMS_PER_BATCH = 3 #maybe more?
     cfg.OUTPUT_DIR = f'{output_dir}/{model_name}_output'
-    cfg.SOLVER.BASE_LR = 0.00025
+    cfg.SOLVER.BASE_LR = REMEMBER TO SET BASE LR + MOMENTUM
     cfg.SOLVER.MAX_ITER = 90000000
     cfg.INPUT.MASK_FORMAT = "bitmask"
 
@@ -66,18 +66,29 @@ augmentations = [
 ]
 
 
-class D2_hyperopt(D2_hyperopt_Base):
+class D2_Hyperopt_Spoleben(D2_hyperopt_Base):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         print('task is',self.task)
 
+    def suggest_helper_size(self):
+        choices =[
+            [[64, 128,]],
+            [[128,256 ]],
+            [[64,128, 256]],
+        ]
+        i = random.randint(0, len(choices))
+        return choices[i]
 
     def suggest_values(self):
         hps = [
-            (['solver', 'BASE_LR'], random.uniform(0.0001, 0.0006)),
+            (['model', 'anchor_generator', 'sizes'], self.suggest_helper_size()),
+            (['model', 'anchor_generator', 'aspect_ratios'], random.choice([[1.0, 2.0], [0.5, 1.0, 2.0], [0.5, 1.0]])),
+            (['MODEL','ROI_HEADS','NMS_THRESH_TEST'], random.uniform(0.33,0.7)),
+            (['MODEL','RPN','NMS_THRESH'],random.uniform(0.55, 0.85)),
+            (['MODEL','RPN','POST_NMS_TOPK_TRAIN'], random.randint(500,1500))
         ]
         return hps
-
 
     def prune_handling(self,pruned_ids):
         for trial_id in pruned_ids:
@@ -90,7 +101,7 @@ evaluator = COCOEvaluator(data_names['val'],("bbox", "segm"), False,cfg.OUTPUT_D
 #hyperoptimization object that uses model_dict to use correct model, and get all hyper-parameters.
 #optimized after "task" as computed by "evaluator". The pruner is (default) SHA, with passed params pr_params.
 #number of trials, are chosen so that the maximum total number of steps does not exceed max_iter.
-hyp = D2_hyperopt(model_name,cfg_base=cfg,data_val_name = data_names['val'],trainer_cls=Trainer_With_Early_Stop,task=task,evaluator=evaluator,step_chunk_size=150,output_dir=output_dir,pruner_cls=SHA,max_iter = 100000,trainer_params=trainer_params)
+hyp = D2_Hyperopt_Spoleben(model_name,cfg_base=cfg,data_val_name = data_names['val'],trainer_cls=Trainer_With_Early_Stop,task=task,evaluator=evaluator,step_chunk_size=150,output_dir=output_dir,pruner_cls=SHA,max_iter = 100000,trainer_params=trainer_params)
 best_models = hyp.start()
 #returns pandas object
 print(best_models)

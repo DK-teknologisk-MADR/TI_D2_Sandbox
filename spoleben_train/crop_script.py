@@ -33,7 +33,7 @@ for split in ['train','val']:
             is_large = np.logical_not( get_small_masks(masks,100))
             large_masks = masks[is_large,:,:]
             print("cropscript:there are ",large_masks.shape[0], "large masks in file",key)
-            masks_in_crop = percentage_of_masks_in_crop(large_masks,crop)>0.4
+            masks_in_crop = percentage_of_masks_in_crop(large_masks,crop)>crop_mask_th
             masks_crop = large_masks[masks_in_crop,crop[0]:crop[2],crop[1]:crop[3]]
             print("cropscript: mask crop shape is",masks_crop.shape)
             print("cropscript: there are ",masks_crop.shape[0], "masks in file",new_pic_name)
