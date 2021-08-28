@@ -108,7 +108,7 @@ def put_poly_overlays(img,new_polys,colors=(255,0,0),alpha = 0.5):
         overlay = cv2.fillPoly(overlay, [poly],color=colors[i % color_nr])
     cv2.addWeighted(overlay, alpha, result, 1 - alpha, 0, result)
     return result
-colors=[(220,120,0),(0,220,120),(155,155,120)]
+#colors=[(220,120,0),(0,220,120),(155,155,120)]
 
 def checkout_imgs(imgs):
     if isinstance(imgs,np.ndarray):
