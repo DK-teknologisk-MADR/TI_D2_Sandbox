@@ -90,6 +90,9 @@ def warpAffineOnPts(pts,M):
 
 
 
+def put_mask_overlays(img,masks,colors=(255,0,0),alpha=0.5):
+    raise NotImplementedError
+
 
 def put_poly_overlays(img,new_polys,colors=(255,0,0),alpha = 0.5):
     try:
@@ -105,11 +108,10 @@ def put_poly_overlays(img,new_polys,colors=(255,0,0),alpha = 0.5):
     result = img.copy()
     color_nr = len(colors)
     for i,poly in enumerate(new_polys_cv):
-        overlay = cv2.fillPoly(overlay, [poly],color=colors[i % color_nr])
-    cv2.addWeighted(overlay, alpha, result, 1 - alpha, 0, result)
-    return result
+        filled = cv2.fillPoly(overlay.copy(), [poly],color=colors[i % color_nr])
+        cv2.addWeighted(overlay, alpha, filled, 1 - alpha, 0, overlay)
+    return overlay
 #colors=[(220,120,0),(0,220,120),(155,155,120)]
-
 def checkout_imgs(imgs):
     if isinstance(imgs,np.ndarray):
         if imgs.ndim >3:
