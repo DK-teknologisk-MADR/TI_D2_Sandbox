@@ -86,3 +86,27 @@ def warpAffineOnPts(pts,M):
         pts = np.hstack([pts,ones])
 
     return M.dot(pts.transpose()).transpose()
+
+
+
+
+def put_poly_overlays(img,new_polys,color=(255,0,0),alpha = 0.5):
+    try:
+        check = [isinstance(poly,np.ndarray) for poly in new_polys]
+    except:
+        raise ValueError("new polys should be a list of numpy arrays of size PTR x 2")
+    if not all(check):
+        raise ValueError("new polys should be a list of numpy arrays of size PTR x 2")
+    new_polys_cv = [poly.astype('int32') for poly in new_polys]
+    overlay = img.copy()
+    result = img.copy()
+    for poly in new_polys:
+        overlay = cv2.fillPoly(overlay, poly, color=(255, 255, 0))
+    cv2.addWeighted(overlay, alpha, result, 1 - alpha, 0, result)
+    return result
+
+
+
+/home/madsbr/detectron2/docker/pers_files/test_files
+
+put_poly_overlays()
