@@ -116,4 +116,4 @@ def load_img_and_polys_from_front(datadir,front):
     if img is None:
         raise ValueError("There seems to be no picture at path",img_path)
     return img,polys
-#x,y = load_img_and_polys_from_front("/home/madsbr/detectron2/docker/pers_files/test_files","robotcell_all1_color_2021-04-08-13-10-00")
+#img,polys = load_img_and_polys_from_front("/home/madsbr/detectron2/docker/pers_files/test_files","robotcell_all1_color_2021-04-08-13-10-00")

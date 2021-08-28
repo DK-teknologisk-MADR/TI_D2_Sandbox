@@ -90,23 +90,37 @@ def warpAffineOnPts(pts,M):
 
 
 
-def put_poly_overlays(img,new_polys,color=(255,0,0),alpha = 0.5):
+
+def put_poly_overlays(img,new_polys,colors=(255,0,0),alpha = 0.5):
     try:
         check = [isinstance(poly,np.ndarray) for poly in new_polys]
     except:
         raise ValueError("new polys should be a list of numpy arrays of size PTR x 2")
     if not all(check):
         raise ValueError("new polys should be a list of numpy arrays of size PTR x 2")
-    new_polys_cv = [poly.astype('int32') for poly in new_polys]
+    if isinstance(colors,tuple):
+        colors = [colors]
+    new_polys_cv = [poly.astype(np.int32) for poly in new_polys]
     overlay = img.copy()
     result = img.copy()
-    for poly in new_polys:
-        overlay = cv2.fillPoly(overlay, poly, color=(255, 255, 0))
+    color_nr = len(colors)
+    for i,poly in enumerate(new_polys_cv):
+        overlay = cv2.fillPoly(overlay, [poly],color=colors[i % color_nr])
     cv2.addWeighted(overlay, alpha, result, 1 - alpha, 0, result)
     return result
+colors=[(220,120,0),(0,220,120),(155,155,120)]
 
-
-
-/home/madsbr/detectron2/docker/pers_files/test_files
-
-put_poly_overlays()
+def checkout_imgs(imgs):
+    if isinstance(imgs,np.ndarray):
+        if imgs.ndim >3:
+            raise ValueError("provide either img of shape hxwx3 or hxw, or provide a list of such imgs. shape of input img is",imgs.shape)
+        else:
+            imgs = [imgs]
+    if isinstance(imgs,dict):
+        titles = list(imgs.keys())
+    else:
+        titles = [f'img_{i}' for i in range(len(imgs))]
+    for title,img in zip(titles,imgs):
+        cv2.imshow(title,img)
+    cv2.waitKey()
+    cv2.destroyAllWindows()
