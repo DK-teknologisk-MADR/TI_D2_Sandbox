@@ -7,19 +7,19 @@ import os
 import shutil
 img_size = (1080,1920)
 crop = 180,330,820,1450
-split_size = (150,150)
-window_size = (300,300)
-crop_mask_th = 0.4
+split_size = (240,240)
+window_size = (400,400)
+crop_mask_th = 0.01
 tilings = Tilings(img_size = img_size,split_sizes=split_size,window_size=window_size,crop_size=crop)
 crop_sizes = tilings.get_crops()
 tilings.get_crops()
 dir ="/pers_files/spoleben/FRPA_annotering/annotations"
 new_dir = "/pers_files/spoleben/FRPA_annotering/annotations_crop" + str(crop).replace(" ","")
 #tilings = Tilings()
-for split in ['train','val']:
+for split in ['val']:
     split_dir = os.path.join(dir,split)
     new_split_dir = os.path.join(new_dir,split)
-    os.makedirs(new_split_dir, exist_ok=True)
+    os.makedirs(new_split_dir, exist_ok=False)
     file_pairs = sort_by_prefix(split_dir)
     for key,values in file_pairs.items():
         for i,crop in enumerate(crop_sizes):
@@ -40,3 +40,6 @@ for split in ['train','val']:
             new_mask_name = key + str(i) + ".npy"
             np.save(os.path.join(new_split_dir,new_mask_name),masks_crop)
             print(crop_pic.shape,masks_crop.shape)
+
+
+#from cv2_utils.cv2_utils import put_mask_overlays()

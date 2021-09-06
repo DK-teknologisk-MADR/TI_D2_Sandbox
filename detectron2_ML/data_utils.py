@@ -106,14 +106,4 @@ def register_data(prefix_name,splits,COCO_dicts,metadata):
             print(f"{name} is already registered.")
     return names_result
 
-def load_img_and_polys_from_front(datadir,front):
-    json_path = os.path.join(datadir,front + ".json")
-    img_path = os.path.join(datadir,front + ".jpg")
-    with open(json_path) as fp:
-        dict = json.load(fp)
-        polys = [np.array(dict['shapes'][i]['points']) for i in range(len(dict['shapes']))]
-    img = cv2.imread(img_path)
-    if img is None:
-        raise ValueError("There seems to be no picture at path",img_path)
-    return img,polys
 #img,polys = load_img_and_polys_from_front("/home/madsbr/detectron2/docker/pers_files/test_files","robotcell_all1_color_2021-04-08-13-10-00")

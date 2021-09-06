@@ -1,3 +1,6 @@
+import json
+import os
+
 import cv2
 import numpy as np
 
@@ -91,7 +94,22 @@ def warpAffineOnPts(pts,M):
 
 
 def put_mask_overlays(img,masks,colors=(255,0,0),alpha=0.5):
-    raise NotImplementedError
+    print("im in")
+    if isinstance(masks,np.ndarray):
+        if masks.ndim >2:
+            mask_ls = [mask.squeeze(0) for mask in np.split(masks,len(masks),axis=0)]
+        elif masks.ndim == 2:
+            mask_ls = [masks]
+    overlay = img.copy()
+    print(mask_ls[0].shape)
+    if isinstance(colors,tuple):
+        colors = [colors]
+    color_nr = len(colors)
+    for i, mask in enumerate(mask_ls):
+        overlay[mask.astype('bool')] = colors[i % color_nr]
+    cv2.addWeighted(img, alpha, overlay, 1 - alpha, 0, overlay)
+    return overlay
+
 
 
 def put_poly_overlays(img,new_polys,colors=(255,0,0),alpha = 0.5):
@@ -105,8 +123,8 @@ def put_poly_overlays(img,new_polys,colors=(255,0,0),alpha = 0.5):
         colors = [colors]
     new_polys_cv = [poly.astype(np.int32) for poly in new_polys]
     overlay = img.copy()
-    result = img.copy()
     color_nr = len(colors)
+    print(color_nr)
     for i,poly in enumerate(new_polys_cv):
         filled = cv2.fillPoly(overlay.copy(), [poly],color=colors[i % color_nr])
         cv2.addWeighted(overlay, alpha, filled, 1 - alpha, 0, overlay)
@@ -126,3 +144,15 @@ def checkout_imgs(imgs):
         cv2.imshow(title,img)
     cv2.waitKey()
     cv2.destroyAllWindows()
+
+
+def load_img_and_polys_from_front(datadir,front):
+    json_path = os.path.join(datadir,front + ".json")
+    img_path = os.path.join(datadir,front + ".jpg")
+    with open(json_path) as fp:
+        dict = json.load(fp)
+        polys = [np.array(dict['shapes'][i]['points']) for i in range(len(dict['shapes']))]
+    img = cv2.imread(img_path)
+    if img is None:
+        raise ValueError("There seems to be no picture at path",img_path)
+    return img,polys

@@ -1,6 +1,6 @@
 import os
 from detectron2.data import build_detection_test_loader
-from detectron2_ML.trainers import TI_Trainer
+from detectron2_ML.trainers import TI_Trainer, Hyper_Trainer
 from detectron2.evaluation import inference_on_dataset
 import detectron2_ML.hooks as hooks
 from detectron2_ML.hooks import StopAtIterHook
@@ -29,7 +29,7 @@ class D2_hyperopt_Base():
     '''
     def __init__(self, model_name,cfg_base,data_val_name, task,evaluator,output_dir, step_chunk_size=30,
                  max_iter = 90,
-                 trainer_cls = TI_Trainer,
+                 trainer_cls = Hyper_Trainer,
                  pruner_cls = SHA,
                  pr_params = {},
                  trainer_params = {}):

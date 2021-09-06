@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 from detectron2.structures.boxes import BoxMode
 from pycocotools.mask import encode
+from cv2_utils.cv2_utils import checkout_imgs,put_mask_overlays
 
 
 
@@ -19,8 +20,11 @@ def bbox2(img):
 def bbox2_xyxy_abs(img):
     rows = np.any(img, axis=1)
     cols = np.any(img, axis=0)
-    rmin, rmax = np.where(rows)[0][[0, -1]]
-    cmin, cmax = np.where(cols)[0][[0, -1]]
+    if np.any(rows):
+        rmin, rmax = np.where(rows)[0][[0, -1]]
+        cmin, cmax = np.where(cols)[0][[0, -1]]
+    else:
+        cmin,rmin,cmax,rmax = (0,0,0,0)
     return cmin,rmin, cmax,rmax
 
 
@@ -154,6 +158,7 @@ def get_data_dicts_masks(data_dir,split,file_pairs):
     img_id = 0
     for idx,tup in enumerate(file_pairs.items()):
         name, files = tup
+        print('treating',name)
         files.sort()
         jpg_name,npy_name = files
         #print(jpg_name)
@@ -170,6 +175,8 @@ def get_data_dicts_masks(data_dir,split,file_pairs):
         record["width"] = width
         mask_file = os.path.join(data_dir_cur,npy_name)
         masks = np.load(mask_file)
+#        overlay = put_mask_overlays( cv2.imread(os.path.join(data_dir_cur,jpg_name)),masks) FOR PLOTTING
+#        checkout_imgs(overlay) FOR PLOTTING
         masks_rle = encode(np.asarray(masks.transpose(1,2,0), order="F"))
 
         print(len(masks_rle))
@@ -177,13 +184,15 @@ def get_data_dicts_masks(data_dir,split,file_pairs):
         objs = []
         for i in range(masks.shape[0]):
             xmin,ymin,xmax,ymax = bbox2_xyxy_abs(masks[i])
-            obj = {
-                        "bbox": [xmin,ymin,xmax,ymax],
-                        "bbox_mode": BoxMode.XYXY_ABS,
-                        "segmentation": masks_rle[i],
-                        "category_id": 0,
-                    }
-            objs.append(obj)
+            if not (xmin == 0 and ymin == 0 and xmax == 0 and ymax == 0):
+                print(xmin,ymin,xmax,ymax)
+                obj = {
+                            "bbox": [xmin,ymin,xmax,ymax],
+                            "bbox_mode": BoxMode.XYXY_ABS,
+                            "segmentation": masks_rle[i],
+                            "category_id": 0,
+                        }
+                objs.append(obj)
         record["annotations"] = objs
         dataset_dicts.append(record)
     return dataset_dicts

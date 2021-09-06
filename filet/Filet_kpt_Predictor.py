@@ -4,6 +4,7 @@ setup_logger()
 from pytorch_ML.compute_IoU import get_ious
 import numpy as np
 import cv2
+import time
 from filet.mask_discriminator.model_tester_mask import Model_Tester_Mask
 from pytorch_ML.networks import IOU_Discriminator,IOU_Discriminator_01,try_script_model
 from detectron2_ML.predictors import ModelTester
@@ -226,8 +227,7 @@ class Filet_ModelTester3(ModelTester):
 
 
     def get_key_points(self,inputs,true_masks = None):
-        if self.print_log:
-            print("recieved image of shape",inputs.shape)
+        if self.print_log: print("recieved image of shape",inputs.shape)
         if self.record_plots:
             self.plt_img_dict = {}
             img_to_plot = inputs.copy()
@@ -236,26 +236,27 @@ class Filet_ModelTester3(ModelTester):
             self.img_to_plot3 = img_to_plot.copy()
             self.img_to_plot4 = img_to_plot.copy()
             self.plt_img_dict['raw'] = img_to_plot
+        if self.print_log: print("starting phsase 1")
         pred_masks, is_empty = self.phase1(inputs,true_masks)
-        pred_masks_np = pred_masks.to('cpu').numpy()
-        print("NOW SHAPE IS", pred_masks_np.shape)
-        if self.skip_phase2:
-            print("WARNING: SKIPPING PHASE 2 DUE TO SETTINGS")
-            ind_to_biggest_object = 0
-        else:
-            self.p2_dataset.set_img_and_masks(inputs,pred_masks_np)
-            print("NOW SHAPE IS",pred_masks_np.shape)
-            loader = DataLoader(self.p2_dataset, batch_size=self.n_biggest, shuffle=False, pin_memory=True, drop_last=False, num_workers=0)
-            img4d = next(iter(loader))
-            ind_to_biggest_object = self.phase2(img4d)
-
-#        img_np = img4d[:3,:,:].to('cpu')
-#        print(img_np.shape)
-#        img_np = img_np.permute(0,2,3,1).numpy()
-#        cv2.imshow("AT PHASE 2",img_np[0])
-        #cv2.waitKey()
-        print("NOW SHAPE IS", pred_masks_np.shape)
         if not is_empty:
+            pred_masks_np = pred_masks.to('cpu').numpy()
+            print("NOW SHAPE IS", pred_masks_np.shape)
+            if self.skip_phase2:
+                print("WARNING: SKIPPING PHASE 2 DUE TO SETTINGS")
+                ind_to_biggest_object = 0
+            else:
+                self.p2_dataset.set_img_and_masks(inputs,pred_masks_np)
+                print("NOW SHAPE IS",pred_masks_np.shape)
+                loader = DataLoader(self.p2_dataset, batch_size=self.n_biggest, shuffle=False, pin_memory=True, drop_last=False, num_workers=0)
+                img4d = next(iter(loader))
+                ind_to_biggest_object = self.phase2(img4d)
+
+    #        img_np = img4d[:3,:,:].to('cpu')
+    #        print(img_np.shape)
+    #        img_np = img_np.permute(0,2,3,1).numpy()
+    #        cv2.imshow("AT PHASE 2",img_np[0])
+            #cv2.waitKey()
+            print("NOW SHAPE IS", pred_masks_np.shape)
             mask, M_rot = self.phase3_preprocess(pred_masks_np[ind_to_biggest_object])
             print("NOW SHAPE IS", pred_masks_np.shape)
             kpts = self.phase3(mask)
@@ -264,7 +265,7 @@ class Filet_ModelTester3(ModelTester):
         else:
             kpts = np.full((2,self.kpts_nr),-1)
 
-        if self.record_plots:
+        if self.record_plots and not is_empty:
             output_circle_img = self.img_to_plot3.copy()
             if not is_empty:
                 #    points1 = [300,300]
@@ -319,20 +320,20 @@ class Filet_ModelTester_Aug(Filet_ModelTester3):
     def phase1(self,np_img,gt_masks=None):
         img_trs = []
         img = self.predictor.aug.get_transform(np_img).apply_image(np_img)
+        aug_time_start = time.time()
         inp = Tr.AugInput(img)
-        img_ts = torch.as_tensor(img.astype("float32").transpose(2, 0, 1),device=self.device)
-        img_ts.requires_grad = False
+        img_ts = torch.tensor(img.astype("float32").transpose(2, 0, 1),device=self.device,requires_grad =False)
         img_trs.append({'image': img_ts})
         for i in range(self.aug_nr):
             img_tr = self.augment_img_optics(img,inp,i)
-            img_tr = torch.as_tensor(img_tr.astype("float32").transpose(2, 0, 1),device=self.device)
-            img_tr.requires_grad = False
+            img_tr = torch.tensor(img_tr.astype("float32").transpose(2, 0, 1),device=self.device,requires_grad=False)
             img_tr = self.augment_img_geometric(img_tr,aug_id=i,inverse=False)
-            if i == 0:
-                img_tr_plot = cv2.cvtColor( 255 * img_tr.to('cpu').numpy().astype('uint8').transpose(1, 2,0),cv2.COLOR_BGR2RGB)
+#            if i == 0:
+#                img_tr_plot = cv2.cvtColor( 255 * img_tr.to('cpu').numpy().astype('uint8').transpose(1, 2,0),cv2.COLOR_BGR2RGB)
 #                cv2.imshow("window",img_tr_plot)
             img_trs.append({'image' : img_tr})
-            #img_trs.append({'image': img_tr})
+        aug_time = time.time()-aug_time_start
+        if self.print_log: print(f"Phase1 : augmented {self.aug_nr } pictures. Batchsize is {len(img_trs)} pictures. aug time: {aug_time}")
         #FOR TESTING
         assert len(img_trs) == self.aug_nr + 1
         with torch.no_grad():
@@ -383,10 +384,10 @@ class Filet_ModelTester_Aug(Filet_ModelTester3):
 #        cv2.imshow("AFTER best_mask_indices", 255*img_plt2)
 
 #        masks_ref_bef_res = masks_ref.clone()
-        masks_ref = resize(img=masks_ref, size=[self.h, self.w])
         if self.print_log: print(f" Phase1: deliveringresult of size{masks_ref.shape}")
         if len(best_mask_indices):
             is_empty = False
+            masks_ref = resize(img=masks_ref, size=[self.h, self.w])
         else:
             is_empty = True
 
@@ -394,8 +395,7 @@ class Filet_ModelTester_Aug(Filet_ModelTester3):
 
 
 
-        if self.record_plots:
-
+        if self.record_plots and not is_empty:
             if gt_masks is None:
                 raise ValueError("please provide true polys")
 
@@ -458,7 +458,6 @@ class Filet_ModelTester_Aug(Filet_ModelTester3):
                #     if i == 1:
                #         cv2.imshow("plot_img0",self.plt_img_dict[f"best_instances{1}"])
                #         cv2.waitKey()
-
         return masks_ref , is_empty
 
     def get_votes(self,masks_ref,masks_aug):

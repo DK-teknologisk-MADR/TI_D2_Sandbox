@@ -70,6 +70,7 @@ class Trainer_With_Early_Stop(TI_Trainer):
             self.augmentations = []
         else:
             self.augmentations = augmentations
+        print("TRAINER: Augmentations passed to trainer : ",augmentations)
         self.period_between_evals = cfg.TEST.EVAL_PERIOD
         if patience is None:
             self.patience = self.period_between_evals * 15
