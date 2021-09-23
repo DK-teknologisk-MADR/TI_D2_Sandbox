@@ -1,6 +1,5 @@
 import json
 import os
-import colors
 import cv2
 import numpy as np
 

@@ -1,7 +1,7 @@
 from detectron2_ML.hooks import StopFakeExc
 from detectron2.engine import DefaultTrainer
 from detectron2.evaluation import COCOEvaluator
-from detectron2.data import DatasetMapper, build_detection_train_loader
+from detectron2.data import DatasetMapper, build_detection_train_loader,build_detection_test_loader
 from detectron2_ML.hooks import StopByProgressHook
 class TI_Trainer(DefaultTrainer):
     '''
@@ -84,6 +84,7 @@ class Trainer_With_Early_Stop(TI_Trainer):
     def build_train_loader(self, cfg):
           mapper = DatasetMapper(cfg, is_train=True, augmentations=self.augmentations)
           return build_detection_train_loader(cfg,mapper=mapper)
+
 
     @classmethod
     def build_evaluator(cls,cfg,dataset_name,output_folder=None):

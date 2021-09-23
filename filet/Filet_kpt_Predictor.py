@@ -43,7 +43,7 @@ class Filet_ModelTester3(ModelTester):
     ''''
     '''
 
-    def __init__(self, cfg_fp, chk_fp, mask_net_chk_fp = None, p3_kpts_nr=21, p2_object_area_thresh = None, device ='cuda:0', print_log = False, img_size=(1024,1024), record_plots = False,skip_phase2 = False,kpts_to_plot=None,p2_prepper = None):
+    def __init__(self, cfg_fp, chk_fp, mask_net_chk_fp = None, p3_kpts_nr=21, p2_object_area_thresh = None, device ='cuda:0', print_log = False, img_size=(1024,1024), record_plots = False,skip_phase2 = False,kpts_to_plot=None,p2_prepper = None,supervised = False):
         super().__init__(cfg_fp=cfg_fp, chk_fp=chk_fp,device = device)
         self.n_biggest = 4
         self.skip_phase2 = skip_phase2
@@ -56,6 +56,7 @@ class Filet_ModelTester3(ModelTester):
 #        net = IOU_Discriminator(device = device)
         self.totensor = torchvision.transforms.ToTensor()
         self.object_area_thresh = p2_object_area_thresh
+        self.supervised = supervised
         #self.p2_preprocessor = PreProcessor([[250,1024-250],[100,1024-100]],resize_dims=(393,618),pad=35,mean=[0,0,0],std=[1,1,1])
         self.p2_preprocessor = p2_prepper
         #self.p2_preprocessor = PreProcessor_Box_Crop([[250,1024-250],[100,1024-100]],resize_dims=(393,618),pad=35,mean=[0.2010, 0.1944, 0.2488, 0.0000],std=[0.3040, 0.2964, 0.3694, 1])
@@ -303,9 +304,10 @@ class Filet_ModelTester3(ModelTester):
 
 
 class Filet_ModelTester_Aug(Filet_ModelTester3):
-    def __init__(self, p1_aug_iou_th = 0.91, **kwargs):
+    def __init__(self, p1_aug_iou_th = 0.92,p1_aug_vote_th=5, **kwargs):
         super().__init__(**kwargs)
         self.p1_aug_iou_th = p1_aug_iou_th
+        self.p1_aug_vote_th = p1_aug_vote_th
         t1min = Tr.RandomContrast(intensity_min=0.75, intensity_max=0.85)
         t2min = Tr.RandomSaturation(intensity_min=0.75, intensity_max=0.85)
         t3min = Tr.RandomLighting(0.8)
@@ -358,21 +360,19 @@ class Filet_ModelTester_Aug(Filet_ModelTester3):
         if torch.any(is_big):
             masks_ref = masks_ref[is_big]
             sizes = sizes[is_big]
-        elif self.print_log: print("there seems to be no good small filets")
+        elif self.print_log: print("there seems to be no good large filets")
         if masks_ref.shape[0] >= self.n_biggest:
             biggest = torch.argsort(sizes,descending=True)[:self.n_biggest]
         else:
             biggest = torch.argsort(sizes,descending=True)
         masks_ref = masks_ref[biggest]
         if self.print_log: print("Phase1 : There are", len(masks_ref), " masks with large size")
-
         self.log("phase1: BEFORE SORTING, sizes are" + str(sizes))
         self.log("phase1: The three largest are " + str(biggest))
 
-
         vote_nrs = self.get_votes(masks_ref,masks_aug)
-        best_mask_indices = vote_nrs >self.p1_aug_iou_th
-        best_mask_indices = np.nonzero(best_mask_indices)[0]
+        have_enough_votes = vote_nrs >self.p1_aug_vote_th
+        best_mask_indices = np.hstack([np.nonzero(have_enough_votes)[0], np.nonzero( np.logical_not(have_enough_votes))[0]])
         if self.print_log: print("best indices are", best_mask_indices)
         #TEST
 #        masks_ref_cp = masks_ref.clone()
@@ -396,7 +396,7 @@ class Filet_ModelTester_Aug(Filet_ModelTester3):
 
 
         if self.record_plots and not is_empty:
-            if gt_masks is None:
+            if gt_masks is None and self.supervised:
                 raise ValueError("please provide true polys")
 
             else:
@@ -424,24 +424,29 @@ class Filet_ModelTester_Aug(Filet_ModelTester3):
                 best_instances = best_instances[best_mask_indices]
                 best_instances = best_instances.to('cpu')
                 best_masks_plot =best_instances.pred_masks
-                 #print("TESTING IS PLOT PRED MASK AND PREDMASKCP SAME")
+                vote_nrs_reordered = vote_nrs[best_mask_indices]
+
+                #print("TESTING IS PLOT PRED MASK AND PREDMASKCP SAME")
 #                print(torch.all(best_instances.pred_masks == masks_ref_cp))
 #                print(torch.all(best_instances.pred_masks == masks_ref_bef_res))
 
 #                try:
-                gt_masks = gt_masks.transpose(1,2,0).astype('float')
-                gt_masks = self.predictor.aug.get_transform(gt_masks).apply_image(gt_masks)
-                gt_masks = gt_masks.transpose(2,0,1)
-                ious = get_ious(gt_masks,best_masks_plot.numpy())
-                print(len(ious))
+                if self.supervised:
+                    gt_masks = gt_masks.transpose(1,2,0).astype('float')
+                    gt_masks = self.predictor.aug.get_transform(gt_masks).apply_image(gt_masks)
+                    gt_masks = gt_masks.transpose(2,0,1)
+                    ious = get_ious(gt_masks,best_masks_plot.numpy())
+                    print(len(ious))
                 sizes_pct = 100 * masks_ref.sum(axis=(1, 2)) / (masks_ref.shape[1] * masks_ref.shape[2])
                 #                except:
            #     print("failed")
           #      ious = [-1 for _ in range(self.n_biggest)]
                 for i in range(1,len(best_mask_indices) + 1):
                     plt_img = img_to_plot_dict[f'img_to_plot{i}']
-                    text_string = "iou: {:.2f}".format(float(ious[i-1]))
-                    text_string = text_string + f" votes ={vote_nrs[i-1]}"
+                    text_string = ""
+                    if self.supervised:
+                        text_string += "iou: {:.2f}".format(float(ious[i-1]))
+                    text_string += f" votes ={vote_nrs_reordered[i-1]}"
                     put_text(plt_img,text_string,pos=(100,100),font_size=2,color=(0,200,75))
                     text_string = "sizes: {:.2f}".format(float(sizes_pct[i-1]))
                     put_text(plt_img,text_string,pos=(100,700),font_size=2,color=(0,200,75))
@@ -454,8 +459,12 @@ class Filet_ModelTester_Aug(Filet_ModelTester3):
                     #                    cv2.imshow("lets plot this",img_plt)
 #                    cv2.waitKey()
                     self.plt_img_dict[f"best_instances{i}"] = img_plt
-                    print(f"PHASE1PLOT: got instance{i-1} with iou {ious[i-1]} and votes{vote_nrs[i-1]}")
-               #     if i == 1:
+                    if self.supervised:
+                        print(f"PHASE1PLOT: got instance{i-1} with iou {ious[i-1]} and votes{vote_nrs_reordered[i-1]}")
+                    else:
+                        print(f"PHASE1PLOT: got instance{i - 1} with votes{vote_nrs[i - 1]}")
+
+            #     if i == 1:
                #         cv2.imshow("plot_img0",self.plt_img_dict[f"best_instances{1}"])
                #         cv2.waitKey()
         return masks_ref , is_empty

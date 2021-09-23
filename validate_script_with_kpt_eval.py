@@ -10,7 +10,7 @@ split = 'val'
 #internal parameters. Do not touch this.
 plot_dir = os.path.join(base_dir,'plot101',split)
 os.makedirs(plot_dir,exist_ok=True)
-evaluator = kpt_Eval(p1_model_dir,base_dir=base_dir,split=split,plot_dir=plot_dir,device='cuda:1',mask_encoding='poly',img_size=(530,910),p2_prepper = prepper,p2_object_area_thresh=0.09)
+evaluator = kpt_Eval(p1_model_dir,base_dir=base_dir,split=split,plot_dir=plot_dir,device='cuda:1',mask_encoding='bit_mask',img_size=(530,910),p2_prepper = prepper,p2_object_area_thresh=0.09)
 evaluator.evaluate_on_split()
 
 

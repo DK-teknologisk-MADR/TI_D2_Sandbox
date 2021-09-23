@@ -66,9 +66,9 @@ augmentations = [
   #        T.RandomApply(T.RandomCrop('absolute',(400,400)),prob=0.75),
           T.RandomFlip(prob=0.5, horizontal=True, vertical=False),
           T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
-          T.RandomBrightness(0.9,1.1),
-          T.RandomSaturation(0.9,1.1),
-          T.Resize((400,400)),
+          T.RandomBrightness(0.8,1.3),
+          T.RandomSaturation(0.8,1.3),
+          T.Resize((800,800))
 ]
 
 
@@ -137,7 +137,7 @@ class D2_Hyperopt_Spoleben(D2_hyperopt_Base):
             #(['model', 'anchor_generator', 'sizes'], self.suggest_helper_size()),
             (['SOLVER','MOMENTUM'],np.random.uniform(0.85,0.95)),
             (['SOLVER','BASE_LR'],float(random.uniform(0.1,2)*4 * random.choice([0.001,0.0001]))),
-            (['model', 'anchor_generator', 'aspect_ratios'], random.choice([[0.75,1.0, 1.5], [0.5, 1.0, 2.0], [1.0]])),
+#            (['model', 'anchor_generator', 'aspect_ratios'], random.choice([[0.75,1.0, 1.5], [0.5, 1.0, 2.0], [1.0]])),
             (['MODEL','ROI_HEADS','NMS_THRESH_TEST'], random.uniform(0.33,0.7)),
            (['MODEL','RPN','NMS_THRESH'],random.uniform(0.55, 0.85)),
             (['MODEL','RPN','POST_NMS_TOPK_TRAIN'], random.randint(500,1500)),
@@ -150,12 +150,12 @@ class D2_Hyperopt_Spoleben(D2_hyperopt_Base):
 
 trainer_params = {'augmentations' : augmentations}
 task = 'segm'
-evaluator = COCOEvaluator(data_names['val'],("bbox", "segm"), False,cfg.OUTPUT_DIR)
+evaluator = COCOEvaluator(data_names[''],("bbox", "segm"), False,cfg.OUTPUT_DIR)
 #CropAndRmPartials(partial_crop_pct=0.5)
 #hyperoptimization object that uses model_dict to use correct model, and get all hyper-parameters.
 #optimized after "task" as computed by "evaluator". The pruner is (default) SHA, with passed params pr_params.
 #number of trials, are chosen so that the maximum total number of steps does not exceed max_iter.
-hyp = D2_Hyperopt_Spoleben(model_name,cfg_base=cfg,data_val_name = data_names[''],task=task,evaluator=evaluator,step_chunk_size=250,output_dir=output_dir,pruner_cls=SHA,max_iter = 100000,trainer_params=trainer_params,pr_params={'factor' : 3, 'topK' : 3})
+hyp = D2_Hyperopt_Spoleben(model_name,cfg_base=cfg,data_val_name = data_names[''],task=task,evaluator=evaluator,step_chunk_size=250,output_dir=output_dir,pruner_cls=SHA,max_iter = 10000,trainer_params=trainer_params,pr_params={'factor' : 3, 'topK' : 1})
 best_models = hyp.start()
 #returns pandas object
 print(best_models)

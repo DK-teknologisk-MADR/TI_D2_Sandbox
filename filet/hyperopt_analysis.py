@@ -91,7 +91,7 @@ df_alive.to_csv(os.path.join(output_dir,'pd_result_pre.csv'))
 #         self.helper_after_train()
 #
 def do_train(augmentations,cfg):
-    trainer = Trainer_With_Early_Stop(augmentations=augmentations,patience=, cfg=cfg)
+    trainer = Trainer_With_Early_Stop(augmentations=augmentations, cfg=cfg)
     trainer.resume_or_load(resume=True)
     trainer.train()
     return trainer.top_score_achieved[0]
