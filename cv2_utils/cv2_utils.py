@@ -94,20 +94,16 @@ def warpAffineOnPts(pts,M):
 
 
 def put_mask_overlays(img,masks,colors=(255,0,0),alpha=0.5):
-    print("im in")
     if isinstance(masks,np.ndarray):
         if masks.ndim >2:
-            mask_ls = [mask.squeeze(0) for mask in np.split(masks,len(masks),axis=0)]
+            masks = [mask.squeeze(0) for mask in np.split(masks,len(masks),axis=0)]
         elif masks.ndim == 2:
-            mask_ls = [masks]
-    else:
-        mask_ls = masks
+            masks = [masks]
     overlay = img.copy()
-    print(mask_ls[0].shape)
     if isinstance(colors,tuple):
         colors = [colors]
     color_nr = len(colors)
-    for i, mask in enumerate(mask_ls):
+    for i, mask in enumerate(masks):
         overlay[mask.astype('bool')] = colors[i % color_nr]
     cv2.addWeighted(img, alpha, overlay, 1 - alpha, 0, overlay)
     return overlay
@@ -140,6 +136,7 @@ def checkout_imgs(imgs):
             imgs = [imgs]
     if isinstance(imgs,dict):
         titles = list(imgs.keys())
+        imgs = list(imgs.values())
     else:
         titles = [f'img_{i}' for i in range(len(imgs))]
     for title,img in zip(titles,imgs):

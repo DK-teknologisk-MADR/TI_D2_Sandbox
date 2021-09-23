@@ -1,4 +1,7 @@
 import os , shutil , json,cv2
+
+import detectron2.utils.visualizer
+from detectron2.utils.visualizer import Visualizer
 import numpy as np
 from copy import deepcopy
 from numpy.random import choice, randint,uniform
@@ -16,6 +19,8 @@ from detectron2_ML.hyperoptimization import D2_hyperopt_Base
 from numpy import random
 from detectron2_ML.data_utils import get_data_dicts, register_data , get_file_pairs
 from spoleben_train.data_utils import get_data_dicts_masks,sort_by_prefix
+from detectron2_ML.transforms import RemoveSmallest , CropAndRmPartials,RandomCropAndRmPartials
+
 splits = ['']
 data_dir = '/pers_files/spoleben/spoleben_09_2021/spoleben_batched' #"/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)"
 file_pairs = { split : sort_by_prefix(os.path.join(data_dir,split)) for split in splits }
@@ -56,14 +61,13 @@ model_name = 'COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x'
 cfg = initialize_base_cfg(model_name)
 
 augmentations = [
-          T.RandomCrop('absolute',(450,450)),
+          RandomCropAndRmPartials(0.3,(450,450)),
           T.RandomRotation(angle=[-10, 10], expand=False, center=None, sample_style='range'),
-          T.RandomApply(T.RandomCrop('absolute',(400,400)),prob=0.75),
+  #        T.RandomApply(T.RandomCrop('absolute',(400,400)),prob=0.75),
           T.RandomFlip(prob=0.5, horizontal=True, vertical=False),
           T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
-          T.RandomBrightness(0.7,1.1),
-          T.RandomSaturation(0.8,1),
-          T.RandomRotation(angle=[-10, 10], expand=False, center=None, sample_style='range'),
+          T.RandomBrightness(0.9,1.1),
+          T.RandomSaturation(0.9,1.1),
           T.Resize((400,400)),
 ]
 
@@ -83,6 +87,38 @@ np.random.shuffle(colors)
 mask_new = put_mask_overlays(a,masks,colors)
 
 checkout_imgs(mask_new)
+# pairs = sort_by_prefix(os.path.join(data_dir,'train'))
+# for front,pair in pairs.items():
+#     jpg,npy = pair
+#     img = cv2.imread(os.path.join(data_dir,'train',jpg))
+#     masks = np.load(os.path.join(data_dir,'train',npy))
+#     img_and_mask = put_mask_overlays(img,masks,colors=[(220,120,0),(0,220,120),(155,155,120),(155,225,40),(70,30,225)])
+#     checkout_imgs({front:img_and_mask})
+# #augmentations = [RandomCropAndRmPartials(0.55,(450,450))]
+# img = cv2.imread(os.path.join(data_dir,'train','robotcell_2021-06-30-14-35-35_all_00000_cam_2_color.jpg'))
+# masks = np.load(os.path.join(data_dir,'train','robotcell_2021-06-30-14-35-35_all_00000_cam_2_color_masks.npy'))
+# img_and_mask = put_mask_overlays(,masks,colors=[(220,120,0),(0,220,120),(155,155,120),(155,225,40),(70,30,225)])
+#
+# checkout_imgs(img_and_mask)
+# aug = T.AugmentationList(augmentations)
+# inp = T.AugInput(image=img)
+# tr = aug(inp)
+# print(tr)
+# a = tr.apply_image(img)
+# masks_aug = [tr.apply_segmentation(mask.astype('uint8') * 255) for mask in masks]
+# mask_new = put_mask_overlays(a,masks_aug,colors=[(220,120,0),(0,220,120),(155,155,120),(155,225,40),(70,30,225)])
+# checkout_imgs([img_and_mask,a,mask_new])
+
+
+
+# trs = CropAndRmPartials(0.5,x0=320,y0=200,w=400,h=400,orig_w=640,orig_h=1120)
+# for a_mask in masks:
+#     mask_crop = trs.apply_segmentation(a_mask.copy())
+#     mask_crop = mask_crop.astype('uint8') * 255
+#     mask_crop_orig = trs_crop.apply_segmentation(a_mask).astype('uint8') * 255
+#     checkout_imgs([img_crop,mask_crop,a_mask.astype('uint8')*255,mask_crop_orig])
+
+
 class D2_Hyperopt_Spoleben(D2_hyperopt_Base):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -90,9 +126,8 @@ class D2_Hyperopt_Spoleben(D2_hyperopt_Base):
 
     def suggest_helper_size(self):
         choices =[
-            [[64, 128,]],
-            [[128,256 ]],
-            [[64,128, 256]],
+            [[32,64, 88]],
+            [[64,88,128]],
         ]
         i = random.randint(0, len(choices))
         return choices[i]
@@ -102,10 +137,10 @@ class D2_Hyperopt_Spoleben(D2_hyperopt_Base):
             #(['model', 'anchor_generator', 'sizes'], self.suggest_helper_size()),
             (['SOLVER','MOMENTUM'],np.random.uniform(0.85,0.95)),
             (['SOLVER','BASE_LR'],float(random.uniform(0.1,2)*4 * random.choice([0.001,0.0001]))),
-            (['model', 'anchor_generator', 'aspect_ratios'], random.choice([[1.0, 2.0], [0.5, 1.0, 2.0], [0.5, 1.0]])),
+            (['model', 'anchor_generator', 'aspect_ratios'], random.choice([[0.75,1.0, 1.5], [0.5, 1.0, 2.0], [1.0]])),
             (['MODEL','ROI_HEADS','NMS_THRESH_TEST'], random.uniform(0.33,0.7)),
-            (['MODEL','RPN','NMS_THRESH'],random.uniform(0.55, 0.85)),
-            (['MODEL','RPN','POST_NMS_TOPK_TRAIN'], random.randint(500,1500))
+           (['MODEL','RPN','NMS_THRESH'],random.uniform(0.55, 0.85)),
+            (['MODEL','RPN','POST_NMS_TOPK_TRAIN'], random.randint(500,1500)),
         ]
         return hps
 
@@ -116,11 +151,11 @@ class D2_Hyperopt_Spoleben(D2_hyperopt_Base):
 trainer_params = {'augmentations' : augmentations}
 task = 'segm'
 evaluator = COCOEvaluator(data_names['val'],("bbox", "segm"), False,cfg.OUTPUT_DIR)
-
+#CropAndRmPartials(partial_crop_pct=0.5)
 #hyperoptimization object that uses model_dict to use correct model, and get all hyper-parameters.
 #optimized after "task" as computed by "evaluator". The pruner is (default) SHA, with passed params pr_params.
 #number of trials, are chosen so that the maximum total number of steps does not exceed max_iter.
-hyp = D2_Hyperopt_Spoleben(model_name,cfg_base=cfg,data_val_name = data_names['val'],task=task,evaluator=evaluator,step_chunk_size=250,output_dir=output_dir,pruner_cls=SHA,max_iter = 100000,trainer_params=trainer_params)
+hyp = D2_Hyperopt_Spoleben(model_name,cfg_base=cfg,data_val_name = data_names[''],task=task,evaluator=evaluator,step_chunk_size=250,output_dir=output_dir,pruner_cls=SHA,max_iter = 100000,trainer_params=trainer_params,pr_params={'factor' : 3, 'topK' : 3})
 best_models = hyp.start()
 #returns pandas object
 print(best_models)

@@ -72,6 +72,17 @@ class RemoveSmallest(T.NoOpTransform):
             polygons = [[] if is_too_small else poly for poly , is_too_small in zip(polygons,are_too_small)]
         return polygons
 
+    def apply_segmentation(self, segmentation: np.ndarray) -> np.ndarray:
+        if self.bySegm:
+            if segmentation.ndim == 3:
+                are_too_small =segmentation.sum(axis=(1,2)) < self.min_area_th
+                segmentation[are_too_small] = 0
+            elif segmentation.ndim == 2:
+                segmentation_unsqueezed = segmentation[None,:,:]
+                segmentation = self.apply_segmentation(segmentation_unsqueezed)
+                segmentation.squeeze()
+        return segmentation
+
 
 #tr = RemoveSmallest(min_area_th=5000,min_area_pct=None,bybox=True,byPolygon=True)
 #x = tr.apply_polygons(polys)
@@ -87,6 +98,40 @@ class CropAndRmPartials(T.CropTransform):
         super().__init__(x0,y0,w,h,orig_w,orig_h)
         self.partial_crop_pct = partial_crop_pct
 
+    # def apply_box(self, box: np.ndarray) -> np.ndarray:
+    #     area = (box[:, 2] - box[:, 0]) * (box[:, 3] - box[:, 1])
+    #     new_boxes = super().apply_box(box)
+    #     print(box)
+    #     print(new_boxes)
+    #     new_area = (new_boxes[:, 2] - new_boxes[:, 0]) * (new_boxes[:, 3] - new_boxes[:, 1])
+    #     pcts = new_area / area
+    #     print(pcts)
+    #     are_too_small = pcts<self.partial_crop_pct
+    #     new_boxes[are_too_small] = 0
+    #     return new_boxes
+
+    def apply_segmentation(self, segmentation: np.ndarray) -> np.ndarray:
+        assert segmentation.ndim == 2, "i thought these transformations was not batched?"
+        area = segmentation.sum()
+        cropped_segm = super().apply_segmentation(segmentation)
+        new_area = cropped_segm.sum()
+        if new_area / area < self.partial_crop_pct:
+            cropped_segm[:] = 0
+        return cropped_segm
+
+
+class RandomCropAndRmPartials(T.Augmentation):
+    def __init__(self,min_pct_kept,crop_size):
+        super().__init__()
+        self.h,self.w = crop_size
+        self.min_pct_kept = min_pct_kept
+
+    def get_transform(self, image):
+        orig_h,orig_w = image.shape[:2]
+        x0 = np.random.randint(0,orig_w-self.w)
+        y0 = np.random.randint(0,orig_h-self.h)
+        tr = CropAndRmPartials(self.min_pct_kept,x0=x0,y0=y0,w=self.w,h=self.h,orig_h=orig_h,orig_w=orig_w)
+        return tr
 
 #
 # tr = CropAndRmPartials(0.5,220,50,500,300,530,910)
