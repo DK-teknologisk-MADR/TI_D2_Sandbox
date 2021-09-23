@@ -87,17 +87,6 @@ class CropAndRmPartials(T.CropTransform):
         super().__init__(x0,y0,w,h,orig_w,orig_h)
         self.partial_crop_pct = partial_crop_pct
 
-    def apply_box(self, box: np.ndarray) -> np.ndarray:
-        area = (box[:, 2] - box[:, 0]) * (box[:, 3] - box[:, 1])
-        new_boxes = super().apply_box(box)
-        print(box)
-        print(new_boxes)
-        new_area = (new_boxes[:, 2] - new_boxes[:, 0]) * (new_boxes[:, 3] - new_boxes[:, 1])
-        pcts = new_area / area
-        print(pcts)
-        are_too_small = pcts<self.partial_crop_pct
-        new_boxes[are_too_small] = 0
-        return new_boxes
 
 #
 # tr = CropAndRmPartials(0.5,220,50,500,300,530,910)

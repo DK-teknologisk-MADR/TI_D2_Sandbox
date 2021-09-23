@@ -2,7 +2,7 @@ import os , shutil , json,cv2
 import numpy as np
 from copy import deepcopy
 from numpy.random import choice, randint,uniform
-
+from cv2_utils.colors import RGB_TO_COLOR_DICT
 from cv2_utils.cv2_utils import *
 from detectron2_ML.trainers import TI_Trainer,Trainer_With_Early_Stop
 from detectron2.config import get_cfg
@@ -16,14 +16,13 @@ from detectron2_ML.hyperoptimization import D2_hyperopt_Base
 from numpy import random
 from detectron2_ML.data_utils import get_data_dicts, register_data , get_file_pairs
 from spoleben_train.data_utils import get_data_dicts_masks,sort_by_prefix
-
-splits = ['train','val']
-data_dir = "/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)"
+splits = ['']
+data_dir = '/pers_files/spoleben/spoleben_09_2021/spoleben_batched' #"/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)"
 file_pairs = { split : sort_by_prefix(os.path.join(data_dir,split)) for split in splits }
 #file_pairs = { split : get_file_pairs(data_dir,split,sorted=True) for split in splits }
 COCO_dicts = {split: get_data_dicts_masks(data_dir,split,file_pairs[split]) for split in splits } #converting TI-annotation of pictures to COCO annotations.
-data_names = register_data('filet',['train','val'],COCO_dicts,{'thing_classes' : ['spoleben']}) #register data by str name in D2 api
-output_dir = f'{data_dir}/output4'
+data_names = register_data('filet',splits,COCO_dicts,{'thing_classes' : ['spoleben']}) #register data by str name in D2 api
+output_dir = f'{data_dir}/output'
 def initialize_base_cfg(model_name,cfg=None):
     '''
     name of function not important. Sets up the base config for model you want to train.
@@ -32,12 +31,12 @@ def initialize_base_cfg(model_name,cfg=None):
     if cfg is None:
         cfg = get_cfg()
     cfg.merge_from_file(model_zoo.get_config_file(f'{model_name}.yaml'))
-    cfg.DATASETS.TRAIN = (data_names['train'],)
-    cfg.DATASETS.TEST = (data_names['val'],) # Use this with trainer_cls : TrainerPeriodicEval if you want to do validation every #.TEST.EVAL_PERIOD iterations
+    cfg.DATASETS.TRAIN = (data_names[''],)
+    cfg.DATASETS.TEST = (data_names[''],) # Use this with trainer_cls : TrainerPeriodicEval if you want to do validation every #.TEST.EVAL_PERIOD iterations
     cfg.TEST.EVAL_PERIOD = 200 #set >0 to activate evaluation
     cfg.DATALOADER.NUM_WORKERS = 6 #add more workerss until it gives warnings.
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(f'{model_name}.yaml')
-    cfg.SOLVER.IMS_PER_BATCH = 3 #maybe more?
+    cfg.SOLVER.IMS_PER_BATCH = 2 #maybe more?
     cfg.OUTPUT_DIR = f'{output_dir}/{model_name}_output'
     cfg.SOLVER.BASE_LR = 0.0003
     cfg.SOLVER.MAX_ITER = 90000000
@@ -52,8 +51,8 @@ def initialize_base_cfg(model_name,cfg=None):
     return cfg
 
 #example input
-model_name = "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x"
-#model_name = 'COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x'
+#model_name = "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x"
+model_name = 'COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x'
 cfg = initialize_base_cfg(model_name)
 
 augmentations = [
@@ -69,17 +68,21 @@ augmentations = [
 ]
 
 
+img_basename = 'kinect_20210916_093902_color__ID77'
+img = cv2.imread(os.path.join(data_dir,'',img_basename + ".jpg"))
+masks = np.load(os.path.join(data_dir,'',img_basename + "_masks.npy"))
+aug = T.AugmentationList(augmentations)
+inp = T.AugInput(image=img)
+tr = aug(inp)
+a = tr.apply_image(img)
+masks = [ tr.apply_segmentation(mask.astype('uint8') * 255) for mask in masks]
 
-#img = cv2.imread(os.path.join(data_dir,'train','robotcell_2021-06-30-10-15-16_all_00008_cam_2_color.jpg'))
-#masks = np.load(os.path.join(data_dir,'train','robotcell_2021-06-30-10-15-16_all_00008_cam_2_color_masks.npy'))
-# aug = T.AugmentationList(augmentations)
-# inp = T.AugInput(image=img)
-# tr = aug(inp)
-# a = tr.apply_image(img)
-# mask = tr.apply_segmentation(masks[0].astype('uint8') * 255)
-# checkout_imgs(mask)
-# mask_new = put_mask_overlays(a,mask)
-# checkout_imgs(mask_new)
+checkout_imgs(masks[0])
+colors = list(RGB_TO_COLOR_DICT.keys()).copy()
+np.random.shuffle(colors)
+mask_new = put_mask_overlays(a,masks,colors)
+
+checkout_imgs(mask_new)
 class D2_Hyperopt_Spoleben(D2_hyperopt_Base):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -96,8 +99,8 @@ class D2_Hyperopt_Spoleben(D2_hyperopt_Base):
 
     def suggest_values(self):
         hps = [
-            (['model', 'anchor_generator', 'sizes'], self.suggest_helper_size()),
-            (['SOLVER','MOMENTUM'],np.random.uniform(0.6,0.95)),
+            #(['model', 'anchor_generator', 'sizes'], self.suggest_helper_size()),
+            (['SOLVER','MOMENTUM'],np.random.uniform(0.85,0.95)),
             (['SOLVER','BASE_LR'],float(random.uniform(0.1,2)*4 * random.choice([0.001,0.0001]))),
             (['model', 'anchor_generator', 'aspect_ratios'], random.choice([[1.0, 2.0], [0.5, 1.0, 2.0], [0.5, 1.0]])),
             (['MODEL','ROI_HEADS','NMS_THRESH_TEST'], random.uniform(0.33,0.7)),

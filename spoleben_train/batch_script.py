@@ -13,8 +13,8 @@ Requirement: Remember to set the "mask_keyword" to distinquish between which mas
 
 
 
-base_dir = "/home/madsbr/Documents/trial_pics_not_annotated"   # "/pers_files/spoleben/FRPA_annotering/annotations" #
-new_dir = "/home/madsbr/Documents/output" #= "/pers_files/spoleben/FRPA_annotering/annotations_crop" + str(crop).replace(" ","")
+base_dir = "/pers_files/spoleben/spoleben_09_2021/spoleben_annotated"   # "/pers_files/spoleben/FRPA_annotering/annotations" #
+new_dir = "/pers_files/spoleben/spoleben_09_2021/spoleben_batched" #= "/pers_files/spoleben/FRPA_annotering/annotations_crop" + str(crop).replace(" ","")
 
 batch_masks_in_dir(base_dir,new_dir,mask_keyword="mask_mask")
 black_out_masks_in_dir(base_dir,new_dir,mask_keyword="not_annotated")

@@ -1,6 +1,6 @@
 import json
 import os
-
+import colors
 import cv2
 import numpy as np
 
@@ -100,6 +100,8 @@ def put_mask_overlays(img,masks,colors=(255,0,0),alpha=0.5):
             mask_ls = [mask.squeeze(0) for mask in np.split(masks,len(masks),axis=0)]
         elif masks.ndim == 2:
             mask_ls = [masks]
+    else:
+        mask_ls = masks
     overlay = img.copy()
     print(mask_ls[0].shape)
     if isinstance(colors,tuple):

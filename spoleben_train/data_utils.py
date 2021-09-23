@@ -1,9 +1,9 @@
 import os
 import sys
-
+import copy
 import cv2
 import numpy as np
-#from detectron2.structures.boxes import BoxMode
+from detectron2.structures.boxes import BoxMode
 from pycocotools.mask import encode
 from cv2_utils.cv2_utils import checkout_imgs,put_mask_overlays
 
@@ -93,16 +93,24 @@ def load_masks(fp_ls):
 
 def load_and_batch_masks(fp_ls,mask_keyword = None):
     'loads all masks,in fp list. If mask_keyword is not none: Only load those with keyword in name.'
+    fp_ls_to_print = copy.copy(fp_ls)
     if mask_keyword is not None:
+        print(mask_keyword)
+        for fp in fp_ls:
+            print(fp)
+            print(mask_keyword in os.path.basename(fp))
+            print(os.path.basename(fp))
+            print(mask_keyword)
         fp_ls = [fp for fp in fp_ls if mask_keyword in os.path.basename(fp)]
     masks = load_masks(fp_ls)
-
-    h,w = masks[0].shape
-    for i,mask in enumerate(masks):
-        if mask.shape != masks[0].shape:
-            raise ValueError("mask from file ",fp_ls[i], "are not of the same shape as ",fp_ls[0])
-    mask_batch = np.array(masks,dtype='bool')
-
+    if masks:
+        h,w = masks[0].shape
+        for i,mask in enumerate(masks):
+            if mask.shape != masks[0].shape:
+                raise ValueError("mask from file ",fp_ls[i], "are not of the same shape as ",fp_ls[0])
+        mask_batch = np.array(masks,dtype='bool')
+    else:
+        print("load_and_batch_masks: Did not load any masks in ",fp_ls)
     return mask_batch
 
 def get_small_masks(masks,small_th):

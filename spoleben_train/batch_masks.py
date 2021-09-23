@@ -45,15 +45,19 @@ def black_out_masks_in_dir(dir_from,dir_to,cropx0y0x1y1 = None,mask_keyword = No
         if len(value) > 1:
             img = cv2.imread(os.path.join(dir_from, value[0]))
             fp_ls = [os.path.join(dir_from, name) for name in value[1:] if name.endswith(".png")]
-            res = load_and_batch_masks(fp_ls,mask_keyword=mask_keyword)
-            assert res.ndim == 3 and res.shape[1:] == img.shape[:2]
-            if cropx0y0x1y1 is not None:
-                x0,y0,x1,y1 = cropx0y0x1y1
-                res = res[:,y0:y1,x0:x1]
-                img = img[y0:y1,x0:x1,:]
-            for mask in res:
-                img = img * (1-mask[:,:,None])
-            cv2.imwrite(os.path.join(dir_to, value[0]),img)  # copy
+            try:
+                res = load_and_batch_masks(fp_ls,mask_keyword=mask_keyword)
+            except:
+                print("there seems to be no masks to blackout for files",fp_ls)
+            else:
+                assert res.ndim == 3 and res.shape[1:] == img.shape[:2]
+                if cropx0y0x1y1 is not None:
+                    x0,y0,x1,y1 = cropx0y0x1y1
+                    res = res[:,y0:y1,x0:x1]
+                    img = img[y0:y1,x0:x1,:]
+                for mask in res:
+                    img = img * (1-mask[:,:,None])
+                cv2.imwrite(os.path.join(dir_to, value[0]),img)  # copy
 
 #SCRIPT:
 #for direction in subfolder_aug:
