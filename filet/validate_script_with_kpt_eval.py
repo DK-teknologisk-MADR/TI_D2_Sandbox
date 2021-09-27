@@ -1,5 +1,5 @@
 from filet.mask_discriminator.transformations import PreProcessor_Crop_n_Resize_Box
-from filet.test_nms_full_model import kpt_Eval
+from detectron2_ML.kpt_eval import kpt_Eval
 import os
 
 prepper = PreProcessor_Crop_n_Resize_Box(resize_dims=[255,255], pad=50, mean=[0.2010, 0.1944, 0.2488, 0.0000],std=[0.224, 0.224, 0.224, 1])

@@ -32,11 +32,13 @@ class D2_hyperopt_Base():
                  trainer_cls = Hyper_Trainer,
                  pruner_cls = SHA,
                  pr_params = {},
-                 trainer_params = {}):
+                 trainer_params = {},
+                 score_name='AP'):
         self.step_chunk_size = step_chunk_size
         self.model_name=model_name
         self.task = task
         self.cfg_base = cfg_base
+        self.score_name = score_name
         self.trainer_cls = trainer_cls
         self.suggested_cfgs = []
         self.data_val_name = data_val_name
@@ -122,7 +124,7 @@ class D2_hyperopt_Base():
       cfg_sg_pred.MODEL.WEIGHTS = os.path.join(cfg_sg.OUTPUT_DIR, "model_final.pth")
       val_loader = build_detection_test_loader(cfg_sg_pred, self.data_val_name) #ud af loop?
       infe = inference_on_dataset(trainer.model, val_loader, self.evaluator)
-      val_to_report = infe[self.task]['AP']
+      val_to_report = infe[self.task][self.score_name]
       return val_to_report
 
     def build_cfg(self,trial_id):

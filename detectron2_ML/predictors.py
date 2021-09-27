@@ -31,6 +31,7 @@ class ModelTester():
               raise ValueError("no checkpoint given, and no checkpoint found in wd")
         self.cfg.MODEL.WEIGHTS = chk_fp
         self.cfg.MODEL.DEVICE = device
+        self.cfg.INPUT.MIN_SIZE_TEST = 0
         self.predictor = predictor_cls(self.cfg)
     def post_process(self,pred_outputs):
         '''

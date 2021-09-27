@@ -68,7 +68,7 @@ class MaskD2NearComputer(MaskScoreComputer):
 
 
 @njit(parallel = True)
-def get_ious(masks_gt,masks_pred):
+def get_ious(masks_gt,masks_pred) -> np.ndarray:
     n_inst_pred = len(masks_pred)
     res = np.zeros(n_inst_pred)
     for i in prange(n_inst_pred):
@@ -90,7 +90,7 @@ def iou_mask(arr1,arr2):
     return inter / union
 
 
-def d2_near(out,target):
+def d2_near(out : np.ndarray ,target : np.ndarray ):
     tp = target * out
     tn = (1 - target) * (1 - out)
     fp = (1 - target) * out

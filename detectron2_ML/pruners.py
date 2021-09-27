@@ -23,6 +23,10 @@ class pruner_base():
 
     def get_best_models(self):
         raise NotImplementedError
+
+    def print_status(self):
+        raise NotImplementedError
+
 class SHA(pruner_base):
     '''
     Given max_res, a number of participants will be initialized which of the form factor^(exp) for some exp integer.
@@ -80,6 +84,50 @@ class SHA(pruner_base):
                 self.done = True
         self.trial_id_cur = self.rung_results[self.trial_in_rung_cur][0]
         return self.trial_id_cur, pruned, self.done
+
+    def get_best_models(self):
+        return self.rung_results
+
+    def print_status(self):
+        print("PRUNER : TOP K IS")
+        to_print = self.rung_results.copy()
+        to_print.sort(reverse=True, key=lambda tup: tup[1])
+        print(to_print[:self.topK])
+
+
+class Random_Search(pruner_base):
+    '''
+    Given max_res, a number of participants will be initialized which of the form factor^(exp) for some exp integer.
+    participant 0 will train for 1 ressource (e.g. iter chunks or time-period), and then a score is reported through .report_and_get_next_trial(),
+    and a new participant is returned to trial. This will keep going until all has trained for 1 ressource, at which all but 1/factor will be eliminated (pruned), and the first "rung" is completed
+    Then, the rung starts, but with factor*(previous ressource) are allocated to each trial.
+    The procedure stops when topK models remains standing.
+
+    '''
+    def __init__(self, res_per_model,participants, topK=1):
+        raise NotImplementedError
+        self.topK = topK
+        self.rungs = 1
+        self.participants = participants
+        self.rung_results = [[j, float('-inf')] for j in range(pow(self.factor, self.rungs - 1))]
+        self.rung_cur = 0
+        self.trial_in_rung_cur = 0
+        self.trial_id_cur = 0
+        self.max_trials_in_rung_cur = len(self.rung_results)
+        self.done = False
+        self.res_per_model = res_per_model
+        print(
+            f"PRUNER : ----------------------\n SHA INITIALIZED \n NUMBER OF TRIALS: {self.participants}\n RUNGS TO COMPLETE: {self.rungs - self.rungs_to_skip}\n ----------------------")
+
+    def compute_rungs(self):
+        return 1
+
+    def get_cur_res(self):
+        return self.res_per_model
+
+    def report_and_get_next_trial(self, reported_val):
+        raise NotImplementedError
+
 
     def get_best_models(self):
         return self.rung_results

@@ -125,6 +125,7 @@ class Filet_ModelTester3(ModelTester):
                 result = result[biggest]
                 print("NOW LENGTH SHOULD BE 3",len(self.pred_instances))
         return result , is_empty
+
     def phase2(self, img4d):
         '''
         takes tensor obj_nr,h,w and returns

@@ -15,7 +15,7 @@ class kpt_Eval():
         self.device = device
         self.p1_model_dir = p1_model_dir
         #p1_model_dir ="/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
-        self.p2_model_dir ="/pers_files/mask_models_pad_mask35_TV/classi_net_TV_rect_balanced_mcc_score_fixed/model20" #CHANGE THIS TO DUMMY MODEL
+        self.p2_model_dir ="/pers_files/mask_models_pad_mask35_TV/classi_net_TV_rect_balanced_mcc_score_fixed/model20" #TODO:CHANGE THIS TO DUMMY MODEL
         self.supervised = supervised
         self.tester = Filet_ModelTester_Aug(cfg_fp= os.path.join(self.p1_model_dir,'cfg.yaml'),chk_fp = os.path.join(self.p1_model_dir,'best_model.pth'),img_size=img_size,device=device,record_plots=True,print_log=True,supervised=supervised,**kwargs_to_model_tester)
         self.base_dir = base_dir

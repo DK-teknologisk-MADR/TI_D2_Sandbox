@@ -15,6 +15,9 @@ matplotlib.use('TkAgg')
 torch.cuda.device(1)
 from filet.Filet_kpt_Predictor import Filet_ModelTester3
 
+######################################################## IS THIS DEPRECATED ? ######################################################################################################
+
+
 def crop_out_seg (img,cnt,pads = (0,0),crop_dim=(256+512,256+512)):
     rect = cv2.minAreaRect(cnt)
     points = cv2.boxPoints(rect)
