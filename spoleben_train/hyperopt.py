@@ -158,11 +158,8 @@ evaluator = COCOEvaluator(data_names[''],("bbox", "segm"), False,cfg.OUTPUT_DIR)
 #hyperoptimization object that uses model_dict to use correct model, and get all hyper-parameters.
 #optimized after "task" as computed by "evaluator". The pruner is (default) SHA, with passed params pr_params.
 #number of trials, are chosen so that the maximum total number of steps does not exceed max_iter.
-<<<<<<< Updated upstream
-hyp = D2_Hyperopt_Spoleben(model_name,cfg_base=cfg,data_val_name = data_names[''],task=task,evaluator=evaluator,step_chunk_size=250,output_dir=output_dir,pruner_cls=SHA,max_iter = 10000,trainer_params=trainer_params,pr_params={'factor' : 3, 'topK' : 1})
-=======
 hyp = D2_Hyperopt_Spoleben(model_name,cfg_base=cfg,data_val_name = data_names[''],task=task,evaluator=evaluator,step_chunk_size=200,output_dir=output_dir,pruner_cls=SHA,max_iter = 100,trainer_params=trainer_params,pr_params={'factor' : 6, 'topK' : 3})
->>>>>>> Stashed changes
+
 best_models = hyp.start()
 #returns pandas object
 print(best_models)
