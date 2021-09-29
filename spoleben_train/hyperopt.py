@@ -21,6 +21,9 @@ from detectron2_ML.data_utils import get_data_dicts, register_data , get_file_pa
 from spoleben_train.data_utils import get_data_dicts_masks,sort_by_prefix
 from detectron2_ML.transforms import RemoveSmallest , CropAndRmPartials,RandomCropAndRmPartials
 
+from detectron2_ML.evaluators import MeatPickEvaluator
+from detectron2_ML.data_utils import get_TI_test_loader_from_cfg
+
 splits = ['']
 data_dir = '/pers_files/spoleben/spoleben_09_2021/spoleben_batched' #"/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)"
 file_pairs = { split : sort_by_prefix(os.path.join(data_dir,split)) for split in splits }
@@ -155,7 +158,11 @@ evaluator = COCOEvaluator(data_names[''],("bbox", "segm"), False,cfg.OUTPUT_DIR)
 #hyperoptimization object that uses model_dict to use correct model, and get all hyper-parameters.
 #optimized after "task" as computed by "evaluator". The pruner is (default) SHA, with passed params pr_params.
 #number of trials, are chosen so that the maximum total number of steps does not exceed max_iter.
+<<<<<<< Updated upstream
 hyp = D2_Hyperopt_Spoleben(model_name,cfg_base=cfg,data_val_name = data_names[''],task=task,evaluator=evaluator,step_chunk_size=250,output_dir=output_dir,pruner_cls=SHA,max_iter = 10000,trainer_params=trainer_params,pr_params={'factor' : 3, 'topK' : 1})
+=======
+hyp = D2_Hyperopt_Spoleben(model_name,cfg_base=cfg,data_val_name = data_names[''],task=task,evaluator=evaluator,step_chunk_size=200,output_dir=output_dir,pruner_cls=SHA,max_iter = 100,trainer_params=trainer_params,pr_params={'factor' : 6, 'topK' : 3})
+>>>>>>> Stashed changes
 best_models = hyp.start()
 #returns pandas object
 print(best_models)

@@ -1,12 +1,15 @@
 import json
 import os
-
+from copy import deepcopy
 import cv2
 import numpy as np
 from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.structures import BoxMode
-
-
+from detectron2.data.build import _train_loader_from_config,build_batch_data_loader,get_detection_dataset_dicts,DatasetMapper
+from detectron2.data.samplers import InferenceSampler
+from detectron2.data import MapDataset
+from detectron2.config import configurable
+from torch.utils.data import DataLoader
 def split_by_ending(file_name):
     '''
     like split but adds "" if no ending
@@ -159,3 +162,43 @@ def register_data(prefix_name,splits,COCO_dicts,metadata):
     return names_result
 
 #img,polys = load_img_and_polys_from_front("/home/madsbr/detectron2/docker/pers_files/test_files","robotcell_all1_color_2021-04-08-13-10-00")
+
+def _TI_test_loader_from_config(cfg,dataset_name = ""):
+    """
+    WARNING: When using this _from_config function, one must supply a custom mapper.
+    Uses the given `dataset_name` argument (instead of the names in cfg), because the
+    standard practice is to evaluate each test set individually (not combining them).
+    """
+    if dataset_name == "":
+        dataset_name = cfg.DATASETS.TEST
+    if isinstance(dataset_name, str):
+        dataset_name = [dataset_name]
+    print("datasetname",dataset_name)
+    dataset = get_detection_dataset_dicts(
+        dataset_name,
+        filter_empty=False,
+        proposal_files=[
+            cfg.DATASETS.PROPOSAL_FILES_TEST[list(cfg.DATASETS.TEST).index(x)] for x in dataset_name
+        ]
+        if cfg.MODEL.LOAD_PROPOSALS
+        else None,
+    )
+    return {"dataset": dataset, "num_workers": cfg.DATALOADER.NUM_WORKERS,'total_batch_size' : cfg.SOLVER.IMS_PER_BATCH}
+
+def get_TI_test_datasetmapper(cfg,augs):
+    return DatasetMapper(cfg,is_train=True,augmentations=augs)
+
+
+@configurable(from_config=_TI_test_loader_from_config)
+def build_TI_test_dataloader(dataset,mapper,num_workers,total_batch_size,cycles=10):
+    assert isinstance(dataset,list), type(dataset)
+    cycled_dataset = []
+    for i in range(cycles):
+        cycled_dataset.extend(deepcopy(dataset))
+    cycled_dataset = MapDataset(cycled_dataset,mapper)
+
+    return build_batch_data_loader(dataset=cycled_dataset,sampler =InferenceSampler(len(cycled_dataset)) ,total_batch_size=total_batch_size,num_workers=num_workers)
+
+def get_TI_test_loader_from_cfg(cfg,dataset_name,augs = None):
+    mapper = get_TI_test_datasetmapper(cfg,augs)
+    return build_TI_test_dataloader(cfg,mapper = mapper)

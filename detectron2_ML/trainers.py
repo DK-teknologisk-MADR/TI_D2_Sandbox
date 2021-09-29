@@ -2,7 +2,20 @@ from detectron2_ML.hooks import StopFakeExc
 from detectron2.engine import DefaultTrainer
 from detectron2.evaluation import COCOEvaluator
 from detectron2.data import DatasetMapper, build_detection_train_loader,build_detection_test_loader
+from detectron2_ML.data_utils import get_TI_test_loader_from_cfg
 from detectron2_ML.hooks import StopByProgressHook
+from detectron2.evaluation import (
+    DatasetEvaluator,
+    inference_on_dataset,
+    print_csv_format,
+    verify_results,
+)
+from collections import OrderedDict
+from detectron2.utils import comm
+import logging
+
+import detectron2.data.transforms as T
+from detectron2.checkpoint import DetectionCheckpointer
 class TI_Trainer(DefaultTrainer):
     '''
     We should always use this trainer instead of defaulttrainer. Its exactly like it, except that it catches the StopFakeExc used for early stopping by hooks in hooks.py
@@ -86,11 +99,77 @@ class Trainer_With_Early_Stop(TI_Trainer):
           return build_detection_train_loader(cfg,mapper=mapper)
 
 
+    def build_test_loader(self, cfg, dataset_name = "lol"):
+        print("--------------------------------------- I AM CALLED ---------------------------------------------",cfg.VERSION,dataset_name)
+        print("--------------------------------------- I AM CALLED ---------------------------------------------",cfg.VERSION,self.augmentations)
+        print("--------------------------------------- I AM CALLED ---------------------------------------------",cfg.VERSION,self.augmentations)
+        print("--------------------------------------- I AM CALLED ---------------------------------------------",cfg.VERSION,self.augmentations)
+        print("--------------------------------------- I AM CALLED ---------------------------------------------",cfg.VERSION,self.augmentations)
+        return get_TI_test_loader_from_cfg(cfg,dataset_name=dataset_name,augs = self.augmentations)
+
     @classmethod
     def build_evaluator(cls,cfg,dataset_name,output_folder=None):
         if output_folder is None:
             output_folder = cfg.OUTPUT_DIR
         return COCOEvaluator(dataset_name, ('bbox', 'segm'), False, output_dir=output_folder)
+
+
+
+
+    def test(self, cfg, model, evaluators=None):
+        """
+        Evaluate the given model. The given model is expected to already contain
+        weights to evaluate.
+
+        Args:
+            cfg (CfgNode):
+            model (nn.Module):
+            evaluators (list[DatasetEvaluator] or None): if None, will call
+                :meth:`build_evaluator`. Otherwise, must have the same length as
+                ``cfg.DATASETS.TEST``.
+
+        Returns:
+            dict: a dict of result metrics
+        """
+        logger = logging.getLogger(__name__)
+        if isinstance(evaluators, DatasetEvaluator):
+            evaluators = [evaluators]
+        if evaluators is not None:
+            assert len(cfg.DATASETS.TEST) == len(evaluators), "{} != {}".format(
+                len(cfg.DATASETS.TEST), len(evaluators)
+            )
+
+        results = OrderedDict()
+        for idx, dataset_name in enumerate(cfg.DATASETS.TEST):
+            data_loader = self.build_test_loader(cfg, dataset_name)
+            # When evaluators are passed in as arguments,
+            # implicitly assume that evaluators can be created before data_loader.
+            if evaluators is not None:
+                evaluator = evaluators[idx]
+            else:
+                try:
+                    evaluator = self.build_evaluator(cfg, dataset_name)
+                except NotImplementedError:
+                    logger.warn(
+                        "No evaluator found. Use `DefaultTrainer.test(evaluators=)`, "
+                        "or implement its `build_evaluator` method."
+                    )
+                    results[dataset_name] = {}
+                    continue
+            results_i = inference_on_dataset(model, data_loader, evaluator)
+            results[dataset_name] = results_i
+            if comm.is_main_process():
+                assert isinstance(
+                    results_i, dict
+                ), "Evaluator must return a dict on the main process. Got {} instead.".format(
+                    results_i
+                )
+                logger.info("Evaluation results for {} in csv format:".format(dataset_name))
+                print_csv_format(results_i)
+
+        if len(results) == 1:
+            results = list(results.values())[0]
+        return results
 
 
     def build_hooks(self):

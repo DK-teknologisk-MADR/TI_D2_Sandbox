@@ -120,7 +120,7 @@ class D2_hyperopt_Base():
       '''
       cfg_sg_pred = cfg_sg.clone()
       cfg_sg_pred.MODEL.WEIGHTS = os.path.join(cfg_sg.OUTPUT_DIR, "model_final.pth")
-      val_loader = build_detection_test_loader(cfg_sg_pred, self.data_val_name) #ud af loop?
+      val_loader = trainer.build_test_loader(cfg_sg_pred, self.data_val_name) #ud af loop?
       infe = inference_on_dataset(trainer.model, val_loader, self.evaluator)
       val_to_report = infe[self.task]['AP']
       return val_to_report
