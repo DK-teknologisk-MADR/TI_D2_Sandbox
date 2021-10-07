@@ -27,7 +27,7 @@ file_pairs = { split : sort_by_prefix(os.path.join(data_dir,split)) for split in
 #file_pairs = { split : get_file_pairs(data_dir,split,sorted=True) for split in splits }
 COCO_dicts = {split: get_data_dicts_masks(data_dir,split,file_pairs[split]) for split in splits } #converting TI-annotation of pictures to COCO annotations.
 data_names = register_data('filet',splits,COCO_dicts,{'thing_classes' : ['spoleben']}) #register data by str name in D2 api
-output_dir = f'/pers_files/spoleben/spoleben_09_2021/output_eval56'
+output_dir = f'/pers_files/spoleben/spoleben_09_2021/output_test2'
 def initialize_base_cfg(model_name,cfg=None):
     '''
     name of function not important. Sets up the base config for model you want to train.
@@ -43,9 +43,10 @@ def initialize_base_cfg(model_name,cfg=None):
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(f'{model_name}.yaml')
     cfg.SOLVER.IMS_PER_BATCH = 2 #maybe more?
     cfg.OUTPUT_DIR = f'{output_dir}/{model_name}_output_eval'
-    cfg.SOLVER.BASE_LR = 0.0003
+    cfg.SOLVER.BASE_LR = 0.000
     cfg.SOLVER.MAX_ITER = 90000000
     cfg.INPUT.MASK_FORMAT = "bitmask"
+    cfg.INPUT.MIN_SIZE_TEST = 450
     cfg.SOLVER.WARMUP_ITERS = 200
     cfg.SOLVER.WARMUP_FACTOR = 1.0 / cfg.SOLVER.WARMUP_ITERS
     cfg.SOLVER.STEPS = [] #cfg.SOLVER.STEPS = [2000,4000] would decay LR by cfg.SOLVER.GAMMA at steps 2000,4000
@@ -67,7 +68,6 @@ augmentations = [
           T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
           T.RandomBrightness(0.9,1.1),
           T.RandomSaturation(0.9,1.1),
-          T.Resize((800,800))
 ]
 
 
@@ -157,7 +157,7 @@ evaluator = COCOEvaluator(data_names[''],("bbox", "segm"), False,cfg.OUTPUT_DIR)
 #hyperoptimization object that uses model_dict to use correct model, and get all hyper-parameters.
 #optimized after "task" as computed by "evaluator". The pruner is (default) SHA, with passed params pr_params.
 #number of trials, are chosen so that the maximum total number of steps does not exceed max_iter.
-hyp = D2_Hyperopt_Spoleben(model_name,cfg_base=cfg,data_val_name = data_names[''],task=task,evaluator=evaluator,step_chunk_size=20,output_dir=output_dir,pruner_cls=SHA,max_iter = 100,trainer_params=trainer_params,pr_params={'factor' : 6, 'topK' : 3})
+hyp = D2_Hyperopt_Spoleben(model_name,cfg_base=cfg,data_val_name = data_names[''],task=task,evaluator=evaluator,step_chunk_size=200,output_dir=output_dir,pruner_cls=SHA,max_iter = 100,trainer_params=trainer_params,pr_params={'factor' : 6, 'topK' : 3})
 best_models = hyp.start()
 #returns pandas object
 print(best_models) 

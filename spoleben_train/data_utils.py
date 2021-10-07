@@ -155,7 +155,7 @@ def show_mask(img,masks):
 
 
 
-def get_data_dicts_masks(data_dir,split,file_pairs):
+def get_data_dicts_masks(data_dir,split,file_pairs,unannotated_ok = False):
     '''
     input:
     list(str) each str refers to a split of dataset. example : split = ['train','val','test']
@@ -164,15 +164,23 @@ def get_data_dicts_masks(data_dir,split,file_pairs):
     '''
     dataset_dicts = []
     data_dir_cur = os.path.join(data_dir,split)
-    for key,values in file_pairs.items():
-        if len(values)!=2:
-            raise ValueError(str(values) + "should be of length 2")
+    if not unannotated_ok:
+        for key,values in file_pairs.items():
+            if len(values)!=2:
+                raise ValueError(str(values) + "should be of length 2")
     img_id = 0
     for idx,tup in enumerate(file_pairs.items()):
         name, files = tup
         print('treating',name)
         files.sort()
-        jpg_name,npy_name = files
+        jpg_name,npy_name = None
+        for file in files:
+            if file.endswith('.jpg') or file.endswith(".jpeg"):
+                jpg_name = file
+            elif file.endswith('.npy'):
+                npy_name = file
+        if (jpg_name is None or npy_name is None) and not unannotated_ok:
+            raise ValueError(f"there seems to be a missing file.{name} has jpg{jpg_name}, and npy name {npy_name}")
         #print(jpg_name)
         #print(cv2.imread(data_dir_cur))
         try:
@@ -185,28 +193,29 @@ def get_data_dicts_masks(data_dir,split,file_pairs):
         record["image_id"] = idx
         record["height"] = height
         record["width"] = width
-        mask_file = os.path.join(data_dir_cur,npy_name)
-        masks = np.load(mask_file)
-#        overlay = put_mask_overlays( cv2.imread(os.path.join(data_dir_cur,jpg_name)),masks) FOR PLOTTING
-#        checkout_imgs(overlay) FOR PLOTTING
-        masks_rle = encode(np.asarray(masks.transpose(1,2,0), order="F"))
+        if npy_name is not None:
+            mask_file = os.path.join(data_dir_cur,npy_name)
+            masks = np.load(mask_file)
+    #        overlay = put_mask_overlays( cv2.imread(os.path.join(data_dir_cur,jpg_name)),masks) FOR PLOTTING
+    #        checkout_imgs(overlay) FOR PLOTTING
+            masks_rle = encode(np.asarray(masks.transpose(1,2,0), order="F"))
 
-        print(len(masks_rle))
-        print(masks.shape)
-        objs = []
-        for i in range(masks.shape[0]):
-            xmin,ymin,xmax,ymax = bbox2_xyxy_abs(masks[i])
-            if not (xmin == 0 and ymin == 0 and xmax == 0 and ymax == 0):
-                print(xmin,ymin,xmax,ymax)
-                obj = {
-                            "bbox": [xmin,ymin,xmax,ymax],
-                            "bbox_mode": BoxMode.XYXY_ABS,
-                            "segmentation": masks_rle[i],
-                            "category_id": 0,
-                        }
-                objs.append(obj)
-        record["annotations"] = objs
-        dataset_dicts.append(record)
+            print(len(masks_rle))
+            print(masks.shape)
+            objs = []
+            for i in range(masks.shape[0]):
+                xmin,ymin,xmax,ymax = bbox2_xyxy_abs(masks[i])
+                if not (xmin == 0 and ymin == 0 and xmax == 0 and ymax == 0):
+                    print(xmin,ymin,xmax,ymax)
+                    obj = {
+                                "bbox": [xmin,ymin,xmax,ymax],
+                                "bbox_mode": BoxMode.XYXY_ABS,
+                                "segmentation": masks_rle[i],
+                                "category_id": 0,
+                            }
+                    objs.append(obj)
+            record["annotations"] = objs
+            dataset_dicts.append(record)
     return dataset_dicts
 
 

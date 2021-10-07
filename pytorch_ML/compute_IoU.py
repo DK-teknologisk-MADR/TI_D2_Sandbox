@@ -1,5 +1,6 @@
 import torch
 from detectron2.structures import pairwise_iou
+from torchvision.transforms import ColorJitter,RandomAffine,Compose
 from numba import prange,njit
 import numpy as np
 
@@ -110,3 +111,55 @@ def d2_wrong_right(right,wrong):
         dists = np.sqrt(np.sum((coords_w[i] - coords_r)**2,axis=1))
         result[i] = np.min(dists)
     return result
+
+class IOUComputerTorch():
+    def get_score(self,masks_gt, masks_pred):
+        n_inst_pred = len(masks_pred)
+        res = torch.zeros(n_inst_pred,device = masks_pred.device)
+        for i in range(n_inst_pred):
+            res[i] = self.find_best_score(base_mask = masks_gt, mask_batch = masks_pred[i] )
+        return res
+
+    def get_score_by_gts(self,masks_gt, masks_pred):
+        n_inst_gt = len(masks_gt)
+        res = torch.zeros(n_inst_gt,device = masks_pred.device)
+        for i in range(n_inst_gt):
+            res[i] = self.find_best_score(base_mask=masks_gt[i], mask_batch = masks_pred)
+        return res
+
+    def find_best_score(self, base_mask,mask_batch):
+        base_mask_unsq = base_mask.unsqueeze(0)
+        inters = torch.logical_and(base_mask_unsq,mask_batch).sum(axis=(1,2))
+        unions =torch.logical_or(base_mask_unsq,mask_batch).sum(axis=(1,2))
+        scores = (inters / unions).max()
+        return scores
+
+
+
+
+#        if augs is None:
+#            self.augs =  Compose([ColorJitter(brightness=1,contrast=1,saturation=1),RandomAffine(degrees=(-10,10))])
+#        else:
+#            self.augs = augs
+
+class Inconsistency_Mask_Score():
+    def __init__(self,min_size = 0,top_iou_nr = None):
+        self.iou_computer = IOUComputerTorch()
+        self.min_size = min_size
+        self.top_iou_nr = top_iou_nr
+
+    def __call__(self,prime_masks : torch.Tensor,aug_masks_ls : list) -> torch.Tensor:
+        are_large_prime_masks = prime_masks.sum(axis=(1,2)) > self.min_size
+        large_prime_masks = prime_masks[are_large_prime_masks]
+        results = torch.zeros((len(aug_masks_ls),len(large_prime_masks)))
+        for i,aug_masks in enumerate(aug_masks_ls):
+            results[i] = self.iou_computer.get_score_by_gts(masks_gt=large_prime_masks,masks_pred=aug_masks_ls[i])
+        avg_iou = results.mean(axis=0)
+
+        if self.top_iou_nr is not None:
+            if are_large_prime_masks.sum()>self.top_iou_nr:
+                avg_iou = avg_iou.sort(descending=True)[0][:self.top_iou_nr]
+        mean_avg_iou = avg_iou.mean()
+        return mean_avg_iou
+
+

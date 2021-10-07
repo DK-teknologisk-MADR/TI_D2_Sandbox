@@ -21,18 +21,19 @@ from detectron2_ML.data_utils import get_data_dicts, register_data , get_file_pa
 from detectron2_ML.transforms import RemoveSmallest , CropAndRmPartials,RandomCropAndRmPartials
 
 augmentations = [
-    RandomCropAndRmPartials(0.3, (450, 450)),
-    T.RandomRotation(angle=[-10, 10], expand=False, center=None, sample_style='range'),
-    #        T.RandomApply(T.RandomCrop('absolute',(400,400)),prob=0.75),
-    T.RandomFlip(prob=0.5, horizontal=True, vertical=False),
-    T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
-    T.RandomBrightness(0.8, 1.2),
-    T.RandomSaturation(0.8, 1.2),
-    #          T.Resize((800,800))
+          RandomCropAndRmPartials(0.3,(450,450)),
+ #         T.RandomRotation(angle=[-10, 10], expand=False, center=None, sample_style='range'),
+ #        T.RandomApply(T.RandomCrop('absolute',(400,400)),prob=0.75),
+          T.RandomFlip(prob=0.5, horizontal=True, vertical=False),
+          T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
+          T.RandomBrightness(0.9,1.1),
+          T.RandomSaturation(0.9,1.1),
 ]
+
 
 def gen_val_set(img_dir,save_dir,cycles,augmentations):
     pairs = sort_by_prefix(img_dir)
+    os.makedirs(save_dir,exist_ok=False)
     aug = T.AugmentationList(augmentations)
     for cycle in range(cycles):
         for front,ls in pairs.items():
@@ -45,5 +46,5 @@ def gen_val_set(img_dir,save_dir,cycles,augmentations):
                     cv2.imwrite(os.path.join(save_dir,name[:-4] + f"aug_nr{cycle}.jpg"),aug_img)
 
 img_dir = "/pers_files/spoleben/spoleben_09_2021/spoleben_not_annotated"
-save_dir = "/pers_files/spoleben/spoleben_09_2021/spoleben_augmented"
+save_dir = "/pers_files/spoleben/spoleben_09_2021/spoleben_not_annotated_aug"
 gen_val_set(img_dir,save_dir=save_dir,cycles = 3,augmentations=augmentations)

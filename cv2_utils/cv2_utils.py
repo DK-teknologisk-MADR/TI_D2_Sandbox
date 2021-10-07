@@ -2,7 +2,9 @@ import json
 import os
 import cv2
 import numpy as np
+import torch
 
+COLOR_LIST = [(220,120,0),(0,220,120),(155,155,120),(200,185,210),(215,210,142),(215,133,14),(45,170,220),(45,90,132),(0,174,225),(95,0,225),(175,194,44)]
 def put_text(img,text,pos = None,font_size = 2,color=(255,0,0)):
     if pos is None:
         pos = (int(img.shape[0]/10,int(img.shape[1]/10)))
@@ -52,6 +54,9 @@ def tensor_pic_to_imshow_np(tens_inp,mask=False):
         else:
             assert tens.shape[0] == 3, "this is not a 3channel color pic, nor a 1 channel bw pic"
         tens = tens.permute(1,2,0).numpy()
+        if tens.dtype==np.float32:
+            tens *=255
+        tens = tens.astype('uint8')
     elif tens.ndim == 2: #color pic
         tens = tens.numpy()
         if mask:
@@ -92,7 +97,7 @@ def warpAffineOnPts(pts,M):
 
 
 
-def put_mask_overlays(img,masks,colors=(255,0,0),alpha=0.5):
+def put_mask_overlays(img,masks,colors=COLOR_LIST,alpha=0.5):
     if isinstance(masks,np.ndarray):
         if masks.ndim >2:
             masks = [mask.squeeze(0) for mask in np.split(masks,len(masks),axis=0)]
@@ -109,7 +114,7 @@ def put_mask_overlays(img,masks,colors=(255,0,0),alpha=0.5):
 
 
 
-def put_poly_overlays(img,new_polys,colors=(255,0,0),alpha = 0.5):
+def put_poly_overlays(img,new_polys,colors=COLOR_LIST,alpha = 0.5):
     try:
         check = [isinstance(poly,np.ndarray) for poly in new_polys]
     except:

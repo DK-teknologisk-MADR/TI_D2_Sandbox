@@ -93,31 +93,23 @@ class RemoveSmallest(T.NoOpTransform):
 # img,polys = load_img_and_polys_from_front(data_dir,front)
 # img_overlay = put_poly_overlays(img,[polys[2]])
 # checkout_imgs(img_overlay)
+
 class CropAndRmPartials(T.CropTransform):
     def __init__(self,partial_crop_pct,x0,y0,w,h,orig_w,orig_h):
         super().__init__(x0,y0,w,h,orig_w,orig_h)
         self.partial_crop_pct = partial_crop_pct
 
-    # def apply_box(self, box: np.ndarray) -> np.ndarray:
-    #     area = (box[:, 2] - box[:, 0]) * (box[:, 3] - box[:, 1])
-    #     new_boxes = super().apply_box(box)
-    #     print(box)
-    #     print(new_boxes)
-    #     new_area = (new_boxes[:, 2] - new_boxes[:, 0]) * (new_boxes[:, 3] - new_boxes[:, 1])
-    #     pcts = new_area / area
-    #     print(pcts)
-    #     are_too_small = pcts<self.partial_crop_pct
-    #     new_boxes[are_too_small] = 0
-    #     return new_boxes
 
     def apply_segmentation(self, segmentation: np.ndarray) -> np.ndarray:
-        assert segmentation.ndim == 2, "i thought these transformations was not batched?"
+        assert segmentation.ndim == 2, "i thought these transformations were not batched?"
         area = segmentation.sum()
         cropped_segm = super().apply_segmentation(segmentation)
         new_area = cropped_segm.sum()
         if new_area / area < self.partial_crop_pct:
             cropped_segm[:] = 0
         return cropped_segm
+
+
 
 
 class RandomCropAndRmPartials(T.Augmentation):
@@ -132,6 +124,7 @@ class RandomCropAndRmPartials(T.Augmentation):
         y0 = np.random.randint(0,orig_h-self.h)
         tr = CropAndRmPartials(self.min_pct_kept,x0=x0,y0=y0,w=self.w,h=self.h,orig_h=orig_h,orig_w=orig_w)
         return tr
+
 
 #
 # tr = CropAndRmPartials(0.5,220,50,500,300,530,910)
@@ -157,4 +150,5 @@ class CropAndResize(T.Augmentation):
         scaler = T.RandomExtent(self.scale_range,self.shift_range)(aug_input)
         resizer = T.Resize((oldx,oldy))(aug_input)
         return T.TransformList([scaler,resizer])
+
 
