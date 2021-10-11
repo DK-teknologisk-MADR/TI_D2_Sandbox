@@ -143,23 +143,26 @@ class IOUComputerTorch():
 #            self.augs = augs
 
 class Inconsistency_Mask_Score():
-    def __init__(self,min_size = 0,top_iou_nr = None):
+    def __init__(self,min_size = 0,top_iou_nr = None,square_score = False):
         self.iou_computer = IOUComputerTorch()
         self.min_size = min_size
         self.top_iou_nr = top_iou_nr
-
+        self.square_score = square_score
     def __call__(self,prime_masks : torch.Tensor,aug_masks_ls : list) -> torch.Tensor:
         are_large_prime_masks = prime_masks.sum(axis=(1,2)) > self.min_size
         large_prime_masks = prime_masks[are_large_prime_masks]
         results = torch.zeros((len(aug_masks_ls),len(large_prime_masks)))
         for i,aug_masks in enumerate(aug_masks_ls):
             results[i] = self.iou_computer.get_score_by_gts(masks_gt=large_prime_masks,masks_pred=aug_masks_ls[i])
-        avg_iou = results.mean(axis=0)
+        if self.square_score:
+            loss = 1-results
+            sq_loss = (loss**2).mean(axis=0)
+            avg_iou = 1-torch.sqrt(sq_loss)
+        else:
+            avg_iou = results.mean(axis=0)
 
         if self.top_iou_nr is not None:
             if are_large_prime_masks.sum()>self.top_iou_nr:
                 avg_iou = avg_iou.sort(descending=True)[0][:self.top_iou_nr]
         mean_avg_iou = avg_iou.mean()
         return mean_avg_iou
-
-

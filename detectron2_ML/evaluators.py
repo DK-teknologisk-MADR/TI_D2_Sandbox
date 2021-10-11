@@ -2,6 +2,9 @@ import os
 import time
 from copy import deepcopy
 from itertools import zip_longest
+from time import time
+from math import floor
+import numpy as np
 
 import numpy
 import torch
@@ -12,13 +15,12 @@ import detectron2_ML.hooks as hooks
 from detectron2.engine import DefaultPredictor
 from detectron2.data.detection_utils import Instances
 from torchvision.transforms import ColorJitter,RandomAffine,Normalize,ToTensor
-from torchvision.transforms.functional import adjust_contrast,adjust_brightness,affine,_get_inverse_affine_matrix , adjust_saturation
+from torchvision.transforms.functional import adjust_contrast,adjust_brightness,affine,_get_inverse_affine_matrix , adjust_saturation,crop
 from numpy.random import choice, randint,uniform
 from cv2_utils.colors import RGB_TO_COLOR_DICT
 from cv2_utils.cv2_utils import *
 from detectron2_ML.trainers import TI_Trainer,Trainer_With_Early_Stop
 from detectron2_ML.data_utils import get_data_dicts, register_data , get_file_pairs,sort_by_prefix
-from spoleben_train.data_utils import get_data_dicts_masks
 from detectron2.config import get_cfg
 from detectron2 import model_zoo
 import torch
@@ -28,31 +30,28 @@ from pytorch_ML.compute_IoU import get_ious
 from detectron2_ML.pruners import SHA
 import pandas as pd
 from pytorch_ML.compute_IoU import Inconsistency_Mask_Score
-from time import time
-from math import floor
-import numpy as np
 # install dependencies:
 import datetime
 from pycocotools.mask import decode
 
 
-
-#FOR TESTING#
-cfg = get_cfg()
-
-cfg.merge_from_file('/pers_files/spoleben/spoleben_09_2021/output_test/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_6_output/cfg.yaml')
-cfg.OUTPUT_DIR = '/pers_files/spoleben/spoleben_09_2021/output_test/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_6_output'
-cfg.MODEL.WEIGHTS = '/pers_files/spoleben/spoleben_09_2021/output_test/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_6_output/best_model.pth'
-cfg.INPUT.MIN_SIZE_TEST=450
-splits = ['']
-data_dir = '/pers_files/spoleben/spoleben_09_2021/spoleben_batched' #"/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)"
-file_pairs = { split : sort_by_prefix(os.path.join(data_dir,split)) for split in splits }
-#file_pairs = { split : get_file_pairs(data_dir,split,sorted=True) for split in splits }
-COCO_dicts = {split: get_data_dicts_masks(data_dir,split,file_pairs[split]) for split in splits } #converting TI-annotation of pictures to COCO annotations.
-data_names = register_data('filet',splits,COCO_dicts,{'thing_classes' : ['spoleben']}) #register data by str name in D2 api
-output_dir = f'/pers_files/spoleben/spoleben_09_2021/output_test2'
-data = COCO_dicts[""]
 #
+# #FOR TESTING#
+# cfg = get_cfg()
+#
+# cfg.merge_from_file('/pers_files/spoleben/spoleben_09_2021/output_test/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_6_output/cfg.yaml')
+# cfg.OUTPUT_DIR = '/pers_files/spoleben/spoleben_09_2021/output_test/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_6_output'
+# cfg.MODEL.WEIGHTS = '/pers_files/spoleben/spoleben_09_2021/output_test/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_6_output/best_model.pth'
+# cfg.INPUT.MIN_SIZE_TEST=450
+# splits = ['']
+# data_dir = '/pers_files/spoleben/spoleben_09_2021/spoleben_batched' #"/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)"
+# file_pairs = { split : sort_by_prefix(os.path.join(data_dir,split)) for split in splits }
+# #file_pairs = { split : get_file_pairs(data_dir,split,sorted=True) for split in splits }
+# COCO_dicts = {split: get_data_dicts_masks(data_dir,split,file_pairs[split]) for split in splits } #converting TI-annotation of pictures to COCO annotations.
+# data_names = register_data('filet',splits,COCO_dicts,{'thing_classes' : ['spoleben']}) #register data by str name in D2 api
+# output_dir = f'/pers_files/spoleben/spoleben_09_2021/output_test2'
+# data = COCO_dicts[""]
+# #
 
 class MeatPickEvaluator(DatasetEvaluator):
 
@@ -72,12 +71,9 @@ class MeatPickEvaluator(DatasetEvaluator):
         total = len(inputs)
         start_time = time.time()
         print("INTPUTS ARE",inputs)
-        for i, xput_dict_pair in enumerate( zip_longest(inputs,outputs,fillvalue=None) ) :
+        for i, xput_dict_pair in enumerate( zip_longest(inputs,outputs,fillvalue=None)):
             input_dict, output_dict = xput_dict_pair
-
-            pcts = floor((i-1 / total)*10) , floor((i / total)*10)
-            if pcts[0] != pcts[1] and pcts[0]>0:
-                print(f"COMPLETED {pcts[1]*10}% OF EVALUATION COMPUTATIONS. time from start:{time.time()-start_time}, time / instance: {(time.time()-start_time) / i}")
+#                print(f"COMPLETED {pcts[1]*10}% OF EVALUATION COMPUTATIONS. time from start:{time.time()-start_time}, time / instance: {(time.time()-start_time) / i}")
             print(input_dict,output_dict)
             fp = input_dict['file_name']
             ID = self.file_name_to_id[fp]
@@ -114,7 +110,7 @@ class MeatPickEvaluator(DatasetEvaluator):
 
 
 class Consistency_Evaluator(DatasetEvaluator):
-    def __init__(self,predictor_cfg, coco_dicts_ls, top_n_ious,img_size,device,pads_pct_hw = (.10,.10), min_size_gt = 0,min_size_pred = 0, min_size_incon = 0):
+    def __init__(self,predictor_cfg, coco_dicts_ls, top_n_ious,img_size,device,pads_pct_hw = (.10,.10), min_size_gt = 0,min_size_pred = 0, min_size_incon = 0,trials_per_file = 3,pre_augs = None):
         '''
         Computes consistency loss of a dataset ( coco_dicts_ls), based on outputs, created from a DefaultPredictor from param predictor_cfg.
         Only base output masks larger than min_size_incon is considered. Also only masks within a frame defied by pads_pct_hw is considered
@@ -127,9 +123,10 @@ class Consistency_Evaluator(DatasetEvaluator):
         self.pred = DefaultPredictor(predictor_cfg)
         self.h,self.w = img_size[0],img_size[1]
         self.evaluations = []
+        self.trials_per_file = trials_per_file
         self.aug_nr = 4 #HARDCODED DO NOT CHANGE ATM
         self.angles = [7, -7, 7, -7]
-        self.translate = [(37, 41), (43, -49), (-45, 39), (-39, 45)]
+        self.translate = [(19, 15), (16, -4), (-22, 19), (-21, 17)]
         self.coco_dicts_ls = deepcopy(coco_dicts_ls)
         self.file_name_to_id = {}
         self.pads_pct_hw = pads_pct_hw
@@ -139,11 +136,12 @@ class Consistency_Evaluator(DatasetEvaluator):
         print(pad_x,pad_y,self.pad_frame.shape)
         self.pad_frame[:pad_x] = True
         self.pad_frame[-pad_x:] = True
+        self.pre_augs = pre_augs
         self.pad_frame[:,:pad_y] = True
         self.pad_frame[:,-pad_y:] = True
         self.device=device
         self.to_ts = ToTensor()
-        self.loss = Inconsistency_Mask_Score(min_size=min_size_gt, top_iou_nr=top_n_ious)
+        self.loss = Inconsistency_Mask_Score(min_size=min_size_gt, top_iou_nr=top_n_ious,square_score=True)
         self.nr_of_pixels = img_size[0] * img_size[1]
         self.consistency_scores = []
         for i in range(len(coco_dicts_ls)):
@@ -158,65 +156,70 @@ class Consistency_Evaluator(DatasetEvaluator):
     def process(self,inputs,outputs=[]):
         total = len(inputs)
         start_time = time()
-        print("INTPUTS ARE",inputs)
-        for i, xput_dicts in enumerate( zip_longest(inputs,outputs,fillvalue=None) ) :
-            print("INSIDE")
+        for i, xput_dicts in enumerate( zip_longest(inputs,outputs,fillvalue=None)) :
             input_dict, output_dict = xput_dicts
-            pcts = floor((i-1 / total)*10) , floor((i / total)*10)
-            if pcts[0] != pcts[1] and pcts[0]>0:
-                print(f"COMPLETED {pcts[1]*10}% OF EVALUATION COMPUTATIONS. time from start:{time()-start_time}, time / instance: {(time()-start_time) / i}")
+ #           pcts = floor((i-1 / total)*10) , floor((i / total)*10)
+#            if pcts[0] != pcts[1] and pcts[0]>0:
+#              print(f"COMPLETED {pcts[1]*10}% OF EVALUATION COMPUTATIONS. time from start:{time()-start_time}, time / instance: {(time()-start_time) / i}")
             fp = input_dict['file_name']
             ID = self.file_name_to_id[fp]
             img = input_dict['image']
 #            gt_masks = [decode(annotation['segmentation']) for annotation in self.coco_dicts_ls[ID]['annotations']]
 #            gt_masks = np.stack(gt_masks,axis=0)
-            img_ts = self.tr_ts(img)
-            img_ts = img_ts.expand(size = (1 + self.aug_nr, 3, img.shape[1], img.shape[2])).clone()
-            with torch.no_grad():
-                start = time()
-                img_ts.to('cuda:0')
-                img_ts[1:3, ] = adjust_brightness(img_ts[1:3, ], brightness_factor=0.7)
-                img_ts[4:, ] = adjust_brightness(img_ts[4:, ], brightness_factor=1.3)
+            results_of_img = np.zeros(self.trials_per_file)
+            for trial_nr in range(self.trials_per_file):
+                img_ts = img.clone()
+                img_ts = self.tr_ts(img_ts)
+                if self.pre_augs is not None:
+                    img_ts = self.pre_augs(img_ts)
+                img_ts = img_ts.expand(size = (1 + self.aug_nr, 3, img_ts.shape[1], img_ts.shape[2])).clone()
+                with torch.no_grad():
+                    start = time()
+                    img_ts.to('cuda:0')
+                    img_ts[1:3, ] = adjust_brightness(img_ts[1:3, ], brightness_factor=0.7)
+                    img_ts[4:, ] = adjust_brightness(img_ts[4:, ], brightness_factor=1.3)
 
-                img_ts[1,] = adjust_contrast(img_ts[1,], contrast_factor=0.6)
-                img_ts[4,] = adjust_contrast(img_ts[4,], contrast_factor=1.4)
+                    img_ts[1,] = adjust_contrast(img_ts[1,], contrast_factor=0.6)
+                    img_ts[4,] = adjust_contrast(img_ts[4,], contrast_factor=1.4)
 
-                img_ts[2, ] = adjust_saturation(img_ts[2, ], saturation_factor=0.7)
-                img_ts[4, ] = adjust_saturation(img_ts[4, ], saturation_factor=1.3)
-                for i in range(self.aug_nr):
-                    img_ts[1 + i] = affine(img_ts[1 + i], angle=self.angles[i], translate=self.translate[i], scale=1,
-                                           shear=[0, 0])
-                img_ts_ls = img_ts.split(1)
-                img_ts_dict = [{'image': img.squeeze(0) * 255} for img in img_ts_ls]
-                output = self.pred.model(img_ts_dict)
-                pred_masks = [output_dict['instances'].pred_masks for output_dict in output]
-                pred_masks = [pred_mask_batch[pred_mask_batch.sum(axis=(1,2)) > self.min_size_incon] for pred_mask_batch in pred_masks]
-                pred_masks[0] = self.get_center_masks(pred_masks[0])
+                    img_ts[2, ] = adjust_saturation(img_ts[2, ], saturation_factor=0.7)
+                    img_ts[4, ] = adjust_saturation(img_ts[4, ], saturation_factor=1.3)
+                    for i in range(self.aug_nr):
+                        img_ts[1 + i] = affine(img_ts[1 + i], angle=self.angles[i], translate=self.translate[i], scale=1,
+                                               shear=[0, 0])
+                    img_ts_ls = img_ts.split(1)
+                    img_ts_dict = [{'image': img.squeeze(0) * 255} for img in img_ts_ls]
+                    output = self.pred.model(img_ts_dict)
+                    pred_masks = [output_dict['instances'].pred_masks for output_dict in output]
+                    pred_masks = [pred_mask_batch[pred_mask_batch.sum(axis=(1,2)) > self.min_size_incon] for pred_mask_batch in pred_masks]
+                    pred_masks[0] = self.get_center_masks(pred_masks[0])
 
-                for i in range(self.aug_nr):
-                    pred_masks[1 + i] = affine(pred_masks[1 + i].unsqueeze(1), angle=0,
-                                               translate=(- self.translate[i][0], - self.translate[i][1]), scale=1,
-                                               shear=[0, 0]).squeeze_(1)
-                for i in range(self.aug_nr):
-                    pred_masks[1 + i] = affine(pred_masks[1 + i].unsqueeze(1), angle=-self.angles[i], translate=(0, 0),
-                                               scale=1, shear=[0, 0]).squeeze_(1)
-                torch.cuda.synchronize()
-                end = time()
-            print(end - start)
-            #masks_cpu = [mask.to('cpu').numpy() for mask in pred_masks]
-            #img = tensor_pic_to_imshow_np(img_ts[0])
-            #over = put_mask_overlays(img, masks_cpu[4])
-#
-#             output_instances = output_dict['instances']
-#             assert isinstance(output_instances,Instances)
-#             pred_masks = output_instances.pred_masks
-#             pred_masks = self.get_center_masks(pred_masks)
-#             img = input_dict['image']
-#             aug_ls =[]
-# #           print("gt_mask_shape",gt_masks.shape)
-#             print("pred_mask_shape",pred_masks.shape)
-            print(self.loss(pred_masks[0], pred_masks[1:]))
-            self.evaluation_results[fp] = float(self.loss(pred_masks[0],pred_masks[1:]).numpy())
+                    for i in range(self.aug_nr):
+                        pred_masks[1 + i] = affine(pred_masks[1 + i].unsqueeze(1), angle=0,
+                                                   translate=(- self.translate[i][0], - self.translate[i][1]), scale=1,
+                                                   shear=[0, 0]).squeeze_(1)
+                    for i in range(self.aug_nr):
+                        pred_masks[1 + i] = affine(pred_masks[1 + i].unsqueeze(1), angle=-self.angles[i], translate=(0, 0),
+                                                   scale=1, shear=[0, 0]).squeeze_(1)
+                    torch.cuda.synchronize()
+                    end = time()
+                #print(end - start)
+    #             masks_cpu = [mask.to('cpu').numpy() for mask in pred_masks]
+    #             img_sgow = tensor_pic_to_imshow_np(img_ts[0])
+    #             overs = [put_mask_overlays(img_sgow, masks_cpu[i]) for i in range(1,5) ]
+    #             checkout_imgs([img_sgow] + overs )
+    # #             output_instances = output_dict['instances']
+    #             assert isinstance(output_instances,Instances)
+    #             pred_masks = output_instances.pred_masks
+    #             pred_masks = self.get_center_masks(pred_masks)
+    #             img = input_dict['image']
+    #             aug_ls =[]
+    # #           print("gt_mask_shape",gt_masks.shape)
+    #             print("pred_mask_shape",pred_masks.shape)
+                trial_result = float(self.loss(pred_masks[0], pred_masks[1:]).numpy())
+                #print(f"trial result is for {fp}",trial_result)
+                results_of_img[trial_nr] = trial_result
+            self.evaluation_results[fp] = results_of_img.mean()
 
 
     def get_center_masks(self,masks_ts):

@@ -70,12 +70,8 @@ def get_M_for_mask_balance(mask,balance='width'):
     #cv2.imshow("orig",mask)
     coords = cv2.findNonZero(mask)
     p1,wh,angle = cv2.minAreaRect(coords)
-    print('got angle',angle)
     if wh[0]<wh[1]:
-        print(p1,wh)
         angle = angle -90
-    print('and_after balance angle is',angle)
-
     center = centroid_of_mask_in_xy(mask)
     M = cv2.getRotationMatrix2D(center=center,angle=angle,scale=1)
     return M
@@ -93,6 +89,27 @@ def warpAffineOnPts(pts,M):
         pts = np.hstack([pts,ones])
 
     return M.dot(pts.transpose()).transpose()
+
+
+def put_circle_overlays(img,pts,colors=COLOR_LIST,alpha=0.9):
+        output_circle_img = img.copy()
+        #    points1 = [300,300]
+        #   points2 = [700,700]
+        if isinstance(pts,list):
+            pts = np.array(pts)
+        if isinstance(pts,np.ndarray):
+            if pts.shape[1] != 2:
+                if pts.shape[0] == 2:
+                    pts = pts.transpose()
+            else:
+                raise ValueError("pts should have dim y X 2, but got",pts.shape)
+            for i, point in enumerate(pts):
+                color = colors[i % len(colors)]
+                radius = 10
+                output_circle_img = cv2.circle(output_circle_img, tuple(point.astype('int')), radius, color, 3)
+            return output_circle_img
+        else:
+            raise ValueError("pts should be list or nparray, but got smt else")
 
 
 

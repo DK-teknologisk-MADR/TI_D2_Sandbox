@@ -13,7 +13,7 @@ import matplotlib
 import numpy as np
 matplotlib.use('TkAgg')
 torch.cuda.device(1)
-from filet.Filet_kpt_Predictor import Filet_ModelTester3
+
 
 ######################################################## IS THIS DEPRECATED ? ######################################################################################################
 

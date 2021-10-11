@@ -1,6 +1,5 @@
-from filet.Filet_kpt_Predictor import Filet_ModelTester3
-from filet.Filet_kpt_Predictor import Filet_ModelTester_Aug
-from detectron2_ML.data_utils import get_file_pairs , sort_by_prefix
+from detectron2_ML.Kpt_Predictor import ModelTester_Aug
+from detectron2_ML.data_utils import sort_by_prefix
 import os
 import cv2
 import matplotlib.pyplot as plt
@@ -11,13 +10,18 @@ from skimage.draw import polygon2mask
 
 class kpt_Eval():
     def __init__(self,p1_model_dir,base_dir,split,plot_dir,img_size = None,device = 'cuda:1',save_plots = True,mask_encoding = 'poly' , supervised = True,**kwargs_to_model_tester):
+        '''
+            Wrapper for ModelTester that can evaluate on an entire "split" (folder) of pictures. The folder is given by fp: base_dir/split
+            It takes Json/ Mask annotations into account if param supvised = True. set mask_encoding = 'poly' or 'bit_mask'
+            It makes a series of plots if save_plots = True which is saved in plot_dir
+        '''
         self.save_plots = save_plots
         self.device = device
         self.p1_model_dir = p1_model_dir
         #p1_model_dir ="/pers_files/Combined_final/Filet/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x_4_output"
         self.p2_model_dir ="/pers_files/mask_models_pad_mask35_TV/classi_net_TV_rect_balanced_mcc_score_fixed/model20" #TODO:CHANGE THIS TO DUMMY MODEL
         self.supervised = supervised
-        self.tester = Filet_ModelTester_Aug(cfg_fp= os.path.join(self.p1_model_dir,'cfg.yaml'),chk_fp = os.path.join(self.p1_model_dir,'best_model.pth'),img_size=img_size,device=device,record_plots=True,print_log=True,supervised=supervised,**kwargs_to_model_tester)
+        self.tester = ModelTester_Aug(cfg_fp= os.path.join(self.p1_model_dir, 'cfg.yaml'), chk_fp = os.path.join(self.p1_model_dir, 'best_model.pth'), img_size=img_size, device=device, record_plots=True, print_log=True, supervised=supervised, **kwargs_to_model_tester)
         self.base_dir = base_dir
         self.img_size = img_size
         self.split = split
@@ -85,12 +89,11 @@ class kpt_Eval():
 
     def evaluate_on_split(self):
         img_dir = os.path.join(self.base_dir,self.split)
-        #df = pd.read_csv("/pers_files/mask_models_pad_mask19/MSE_net/" +  '/result.csv')
         pairs = sort_by_prefix(img_dir)
         for front, ls in pairs.items():
             img_name = front + ".jpg"
-            json_name = front + ".json"
-            masks_name = front + "_masks.npy"
+            json_name = front + ".json" #not used here atm
+            masks_name = front + "_masks.npy" #not used here atm
             file_fps = [ os.path.join(img_dir,name) for name in ls]
             plot_fp = f"{os.path.join(self.plot_dir, img_name[:-4])}VIZ.jpg"
             print(file_fps)

@@ -1,15 +1,11 @@
-import os , shutil , json,cv2
-
-import detectron2.utils.visualizer
-from detectron2.utils.visualizer import Visualizer
-import numpy as np
+import pandas as pd
 from copy import deepcopy
-from numpy.random import choice, randint,uniform
-from cv2_utils.colors import RGB_TO_COLOR_DICT
+from torchvision.transforms import ColorJitter,RandomAffine,Normalize,ToTensor,RandomCrop,RandomVerticalFlip,RandomHorizontalFlip,Compose
 from cv2_utils.cv2_utils import *
-from detectron2_ML.trainers import TI_Trainer,Trainer_With_Early_Stop
 from detectron2.config import get_cfg
-from detectron2 import model_zoo
+
+import torch
+from detectron2_ML.evaluators import Consistency_Evaluator
 from detectron2.data import DatasetMapper, build_detection_train_loader
 import detectron2.data.transforms as T
 from detectron2.evaluation import COCOEvaluator
@@ -18,33 +14,36 @@ from detectron2_ML.trainers import TrainerPeriodicEval
 from detectron2_ML.hyperoptimization import D2_hyperopt_Base
 from numpy import random
 from detectron2_ML.data_utils import get_data_dicts, register_data , get_file_pairs,sort_by_prefix
+from spoleben_train.data_utils import get_data_dicts_masks
 from detectron2_ML.transforms import RemoveSmallest , CropAndRmPartials,RandomCropAndRmPartials
+from detectron2_ML.evaluators import MeatPickEvaluator
+splits = ['']
+data_dir = '/pers_files/spoleben/spoleben_09_2021/spoleben_not_annotated' #"/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)"
+file_pairs = { split : sort_by_prefix(os.path.join(data_dir,split)) for split in splits }
+#file_pairs = { split : get_file_pairs(data_dir,split,sorted=True) for split in splits }
+COCO_dicts = {split: get_data_dicts_masks(data_dir,split,file_pairs[split],unannotated_ok=True) for split in splits } #converting TI-annotation of pictures to COCO annotations.
+data_names = register_data('filet',splits,COCO_dicts,{'thing_classes' : ['spoleben']}) #register data by str name in D2 api
+output_dir = f'/pers_files/spoleben/spoleben_09_2021/output_test2'
+data = COCO_dicts[""]
 
-augmentations = [
-          RandomCropAndRmPartials(0.3,(450,450)),
- #         T.RandomRotation(angle=[-10, 10], expand=False, center=None, sample_style='range'),
- #        T.RandomApply(T.RandomCrop('absolute',(400,400)),prob=0.75),
-          T.RandomFlip(prob=0.5, horizontal=True, vertical=False),
-          T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
-          T.RandomBrightness(0.9,1.1),
-          T.RandomSaturation(0.9,1.1),
-]
+#FOR TESTING#
+cfg = get_cfg()
+cfg.merge_from_file('/pers_files/spoleben/spoleben_09_2021/output_test/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_6_output/cfg.yaml')
+cfg.OUTPUT_DIR = '/pers_files/spoleben/spoleben_09_2021/output_test/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_6_output'
+cfg.MODEL.WEIGHTS = '/pers_files/spoleben/spoleben_09_2021/output_test/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_6_output/best_model.pth'
+cfg.INPUT.MIN_SIZE_TEST=450
 
+data_ls = deepcopy(COCO_dicts[''])
+for data in data_ls:
+    data['image'] = torch.tensor(cv2.imread(data['file_name'])).permute(2,0,1)
+print("PRINTING DATA",data)
 
-def gen_val_set(img_dir,save_dir,cycles,augmentations):
-    pairs = sort_by_prefix(img_dir)
-    os.makedirs(save_dir,exist_ok=False)
-    aug = T.AugmentationList(augmentations)
-    for cycle in range(cycles):
-        for front,ls in pairs.items():
-            for name in ls:
-                if ".jpg" in name:
-                    img = cv2.imread(os.path.join(img_dir,name))
-                    inp = T.AugInput(image=img)
-                    tr = aug(inp)
-                    aug_img = tr.apply_image(img)
-                    cv2.imwrite(os.path.join(save_dir,name[:-4] + f"aug_nr{cycle}.jpg"),aug_img)
+#checkout_imgs(tensor_pic_to_imshow_np(data['image']))
 
-img_dir = "/pers_files/spoleben/spoleben_09_2021/spoleben_not_annotated"
-save_dir = "/pers_files/spoleben/spoleben_09_2021/spoleben_not_annotated_aug"
-gen_val_set(img_dir,save_dir=save_dir,cycles = 3,augmentations=augmentations)
+pre_augs = Compose([RandomCrop(size=450),RandomVerticalFlip(),RandomHorizontalFlip()])
+eval = Consistency_Evaluator(predictor_cfg = cfg,coco_dicts_ls = data_ls,top_n_ious = 10,img_size = (450,450),device = 'cuda:0',min_size_incon = 3000,pre_augs = pre_augs)
+eval.process(data_ls)
+df = pd.DataFrame(eval.evaluate(),columns=['file_score_dict']).sort_values(by='file_score_dict')
+print(df[:10])
+print(df[:10].index)
+

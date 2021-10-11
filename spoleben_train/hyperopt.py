@@ -20,9 +20,8 @@ from numpy import random
 from detectron2_ML.data_utils import get_data_dicts, register_data , get_file_pairs,sort_by_prefix
 from spoleben_train.data_utils import get_data_dicts_masks
 from detectron2_ML.transforms import RemoveSmallest , CropAndRmPartials,RandomCropAndRmPartials
-from detectron2_ML.evaluators import MeatPickEvaluator
 splits = ['']
-data_dir = '/pers_files/spoleben/spoleben_09_2021/spoleben_batched' #"/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)"
+data_dir = '/pers_files/spoleben/spoleben_09_2021/spoleben_batched'
 file_pairs = { split : sort_by_prefix(os.path.join(data_dir,split)) for split in splits }
 #file_pairs = { split : get_file_pairs(data_dir,split,sorted=True) for split in splits }
 COCO_dicts = {split: get_data_dicts_masks(data_dir,split,file_pairs[split]) for split in splits } #converting TI-annotation of pictures to COCO annotations.

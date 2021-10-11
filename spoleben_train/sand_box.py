@@ -4,9 +4,11 @@ import detectron2.utils.visualizer
 from detectron2.utils.visualizer import Visualizer
 import numpy as np
 from time import time
+import pandas as pd
 from copy import deepcopy
-from torchvision.transforms import ColorJitter,RandomAffine,Normalize,ToTensor
+from torchvision.transforms import ColorJitter,RandomAffine,Normalize,ToTensor,RandomCrop,RandomVerticalFlip,RandomHorizontalFlip,Compose
 from torchvision.transforms.functional import adjust_contrast,adjust_brightness,affine,_get_inverse_affine_matrix
+
 from numpy.random import choice, randint,uniform
 from cv2_utils.colors import RGB_TO_COLOR_DICT
 from cv2_utils.cv2_utils import *
@@ -27,10 +29,11 @@ from spoleben_train.data_utils import get_data_dicts_masks
 from detectron2_ML.transforms import RemoveSmallest , CropAndRmPartials,RandomCropAndRmPartials
 from detectron2_ML.evaluators import MeatPickEvaluator
 splits = ['']
-data_dir = '/pers_files/spoleben/spoleben_09_2021/spoleben_not_annotated_aug' #"/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)"
+data_dir = '/pers_files/spoleben/spoleben_09_2021/spoleben_not_annotated' #"/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)"
 file_pairs = { split : sort_by_prefix(os.path.join(data_dir,split)) for split in splits }
 #file_pairs = { split : get_file_pairs(data_dir,split,sorted=True) for split in splits }
-COCO_dicts = {split: get_data_dicts_masks(data_dir,split,file_pairs[split]) for split in splits } #converting TI-annotation of pictures to COCO annotations.
+COCO_dicts = {split: get_data_dicts_masks(data_dir,split,file_pairs[split],unannotated_ok=True) for split in splits } #converting TI-annotation of pictures to COCO annotations.
+COCO_dicts['']
 data_names = register_data('filet',splits,COCO_dicts,{'thing_classes' : ['spoleben']}) #register data by str name in D2 api
 output_dir = f'/pers_files/spoleben/spoleben_09_2021/output_test2'
 data = COCO_dicts[""]
@@ -78,13 +81,17 @@ data_ls = deepcopy(COCO_dicts[''])
 for data in data_ls:
     data['image'] = torch.tensor(cv2.imread(data['file_name'])).permute(2,0,1)
 print("PRINTING DATA",data)
+
 #checkout_imgs(tensor_pic_to_imshow_np(data['image']))
-eval = Consistency_Evaluator(predictor_cfg=cfg,coco_dicts_ls=data_ls,top_n_ious=10,img_size=(650,1400),device='cuda:0',min_size_incon=3000)
+
+pre_augs = Compose([RandomCrop(size=450),RandomVerticalFlip(),RandomHorizontalFlip()])
+eval = Consistency_Evaluator(predictor_cfg = cfg,coco_dicts_ls = data_ls,top_n_ious = 10,img_size = (450,450),device = 'cuda:0',min_size_incon = 3000,pre_augs = pre_augs)
 eval.process(data_ls)
-print(eval.evaluate())
+df = pd.DataFrame(eval.evaluate(),columns=['file_score_dict']).sort_values(by='file_score_dict')
+
+
 #checkout_imgs(tensor_pic_to_imshow_np(data['image']))
 #eval = Consistency_Evaluator(predictor_cfg=cfg,coco_dicts_ls=data,top_n_ious=10,img_size=(650,1400),device='cuda:0',min_size_incon=3000)
-
 #eval.process([data])
 #print(eval.evaluate())
 

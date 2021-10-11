@@ -173,7 +173,7 @@ def get_data_dicts_masks(data_dir,split,file_pairs,unannotated_ok = False):
         name, files = tup
         print('treating',name)
         files.sort()
-        jpg_name,npy_name = None
+        jpg_name,npy_name = None,None
         for file in files:
             if file.endswith('.jpg') or file.endswith(".jpeg"):
                 jpg_name = file
@@ -215,7 +215,7 @@ def get_data_dicts_masks(data_dir,split,file_pairs,unannotated_ok = False):
                             }
                     objs.append(obj)
             record["annotations"] = objs
-            dataset_dicts.append(record)
+        dataset_dicts.append(record)
     return dataset_dicts
 
 

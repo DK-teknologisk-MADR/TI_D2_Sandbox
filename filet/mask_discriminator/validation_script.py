@@ -1,28 +1,17 @@
 import cv2
 import torch
-import os
-import sys, os
-from filet.mask_discriminator.model_tester_mask import Model_Tester_Mask
-import filet.mask_discriminator.mask_data_pairs_script
+import sys
+from pytorch_ML.model_tester_mask import Model_Tester_Mask
 from pytorch_ML.networks import IOU_Discriminator_01
 sys.path.append('/pyscripts/pytorch_ML')
-import validators
 import matplotlib.pyplot as plt
-import pytorch_ML.networks
-import pytorch_ML.validators
+
 print(torch.cuda.memory_summary())
-import scipy
-import pytorch_ML.hyperopt as md
-import torch.nn as nn
-from filet.mask_discriminator.mask_data_loader import rm_dead_data_and_get_ious , get_file_pairs, Filet_Seg_Dataset , get_loader,Filet_Seg_Dataset_Box
+from filet.mask_discriminator.mask_data_loader import rm_dead_data_and_get_ious , get_file_pairs, get_loader,Filet_Seg_Dataset_Box
 import numpy as np
 
-from filet.mask_discriminator.iou_transformations import normalize_ious,get_r_mean_std,rectify_ious,Rectifier
-import torch.optim as optim
-from pytorch_ML.validators import f1_score,prec_rec_scores,f1_score_neg,mcc_score,prec_rec_spec_neqprec_scores
-from torch.optim.lr_scheduler import ReduceLROnPlateau , ExponentialLR
-from pytorch_ML.networks import IOU_Discriminator
-from torchvision.transforms import Normalize
+from filet.mask_discriminator.iou_transformations import Rectifier
+from pytorch_ML.validators import f1_score_neg, prec_rec_spec_neqprec_scores
 import os
 img_dir="/pers_files/Combined_final/Filet"
 data_dir = '/pers_files/mask_data_raw_TV/'
