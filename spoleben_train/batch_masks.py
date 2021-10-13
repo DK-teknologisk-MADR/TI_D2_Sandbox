@@ -2,7 +2,8 @@ import cv2
 from cv2_utils.cv2_utils import put_mask_overlays,checkout_imgs
 import numpy as np
 from spoleben_train.Tilings import Tilings
-from spoleben_train.data_utils import sort_by_prefix,load_masks,load_and_batch_masks,get_small_masks
+from detectron2_ML.data_utils import sort_by_prefix
+from spoleben_train.data_utils import load_and_batch_masks
 import os
 import shutil
 
@@ -58,8 +59,8 @@ def black_out_masks_in_dir(dir_from,dir_to,cropx0y0x1y1 = None,mask_keyword = No
                     img = img * (1-mask[:,:,None])
                 cv2.imwrite(os.path.join(dir_to, value[0]),img)  # copy
 
-overlay = put_mask_overlays(img,res,colors=[(220,120,0),(0,220,120),(155,155,120),(200,185,210),(215,210,142),(215,133,14),(45,170,220),(45,90,132),(0,174,225),(95,0,225),(175,194,44)])
-cv2.imwrite(os.path.join(dir_to, value[0] + "_mask_overlay.jpeg"),overlay)
+#overlay = put_mask_overlays(img,res,colors=[(220,120,0),(0,220,120),(155,155,120),(200,185,210),(215,210,142),(215,133,14),(45,170,220),(45,90,132),(0,174,225),(95,0,225),(175,194,44)])
+#cv2.imwrite(os.path.join(dir_to, value[0] + "_mask_overlay.jpeg"),overlay)
 #batch_masks_in_dir(base_dir,new_dir,(820,1450,180,330))
 #SCRIPT:
 

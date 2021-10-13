@@ -16,17 +16,19 @@ from detectron2.evaluation import COCOEvaluator
 from detectron2_ML.pruners import SHA
 from detectron2_ML.trainers import TrainerPeriodicEval
 from detectron2_ML.hyperoptimization import D2_hyperopt_Base
+from datetime import datetime
 from numpy import random
 from detectron2_ML.data_utils import get_data_dicts, register_data , get_file_pairs,sort_by_prefix
 from spoleben_train.data_utils import get_data_dicts_masks
 from detectron2_ML.transforms import RemoveSmallest , CropAndRmPartials,RandomCropAndRmPartials
 splits = ['']
+
 data_dir = '/pers_files/spoleben/spoleben_09_2021/spoleben_batched'
 file_pairs = { split : sort_by_prefix(os.path.join(data_dir,split)) for split in splits }
 #file_pairs = { split : get_file_pairs(data_dir,split,sorted=True) for split in splits }
 COCO_dicts = {split: get_data_dicts_masks(data_dir,split,file_pairs[split]) for split in splits } #converting TI-annotation of pictures to COCO annotations.
 data_names = register_data('filet',splits,COCO_dicts,{'thing_classes' : ['spoleben']}) #register data by str name in D2 api
-output_dir = f'/pers_files/spoleben/spoleben_09_2021/output_test2'
+output_dir = f'/pers_files/spoleben/spoleben_09_2021/output_{datetime.now().day}-{datetime.now().month}'
 def initialize_base_cfg(model_name,cfg=None):
     '''
     name of function not important. Sets up the base config for model you want to train.
@@ -45,14 +47,14 @@ def initialize_base_cfg(model_name,cfg=None):
     cfg.SOLVER.BASE_LR = 0.000
     cfg.SOLVER.MAX_ITER = 90000000
     cfg.INPUT.MASK_FORMAT = "bitmask"
-    cfg.INPUT.MIN_SIZE_TEST = 450
+    cfg.INPUT.MIN_SIZE_TEST = 0
     cfg.SOLVER.WARMUP_ITERS = 200
     cfg.SOLVER.WARMUP_FACTOR = 1.0 / cfg.SOLVER.WARMUP_ITERS
     cfg.SOLVER.STEPS = [] #cfg.SOLVER.STEPS = [2000,4000] would decay LR by cfg.SOLVER.GAMMA at steps 2000,4000
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512  #(default: 512)
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
     #might as well make sure output_dir exists
-    os.makedirs(f'{output_dir}/{model_name}_output',exist_ok=False)
+    os.makedirs(f'{output_dir}/{model_name}_output',exist_ok=True)
     return cfg
 
 #example input
@@ -65,12 +67,12 @@ augmentations = [
   #        T.RandomApply(T.RandomCrop('absolute',(400,400)),prob=0.75),
           T.RandomFlip(prob=0.5, horizontal=True, vertical=False),
           T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
-          T.RandomBrightness(0.9,1.1),
-          T.RandomSaturation(0.9,1.1),
+          T.RandomBrightness(0.75,1.25),
+          T.RandomSaturation(0.75,1.25),
 ]
 
 
-img_basename = 'kinect_20210916_093902_color__ID77'
+img_basename = 'kinect_20210916_102523_color__ID193'
 img = cv2.imread(os.path.join(data_dir,'',img_basename + ".jpg"))
 masks = np.load(os.path.join(data_dir,'',img_basename + "_masks.npy"))
 aug = T.AugmentationList(augmentations)
@@ -132,7 +134,7 @@ class D2_Hyperopt_Spoleben(D2_hyperopt_Base):
 
     def suggest_values(self):
         hps = [
-            (['model', 'anchor_generator', 'sizes'], self.suggest_helper_size()),
+#            (['model', 'anchor_generator', 'sizes'], self.suggest_helper_size()),
             (['SOLVER','MOMENTUM'],np.random.uniform(0.85,0.95)),
             (['SOLVER','BASE_LR'],float(random.uniform(0.1,2)*4 * random.choice([0.001,0.0001]))),
 #            (['model', 'anchor_generator', 'aspect_ratios'], random.choice([[0.75,1.0, 1.5], [0.5, 1.0, 2.0], [1.0]])),
@@ -156,7 +158,7 @@ evaluator = COCOEvaluator(data_names[''],("bbox", "segm"), False,cfg.OUTPUT_DIR)
 #hyperoptimization object that uses model_dict to use correct model, and get all hyper-parameters.
 #optimized after "task" as computed by "evaluator". The pruner is (default) SHA, with passed params pr_params.
 #number of trials, are chosen so that the maximum total number of steps does not exceed max_iter.
-hyp = D2_Hyperopt_Spoleben(model_name,cfg_base=cfg,data_val_name = data_names[''],task=task,evaluator=evaluator,step_chunk_size=200,output_dir=output_dir,pruner_cls=SHA,max_iter = 100,trainer_params=trainer_params,pr_params={'factor' : 6, 'topK' : 3})
+hyp = D2_Hyperopt_Spoleben(model_name,cfg_base=cfg,data_val_name = data_names[''],task=task,evaluator=evaluator,step_chunk_size=598,output_dir=output_dir,pruner_cls=SHA,max_iter = 1000000,trainer_params=trainer_params,pr_params={'factor' : 4, 'topK' : 4})
 best_models = hyp.start()
 #returns pandas object
 print(best_models) 

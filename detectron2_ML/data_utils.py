@@ -87,6 +87,64 @@ def sort_by_prefix(fp):
     return result
 
 
+
+def get_data_dicts_txt_box(data_dir,split,file_pairs = None):
+    '''
+    input:
+    list(str) each str refers to a split of dataset. example : split = ['train','val','test']
+    If file_pairs is none, file_pairs will be created all files in each data_dir split.
+    output: dict withCOCO compliant structure, ready to be registered as a dataset in detectron2
+    '''
+    if file_pairs is None:
+        file_pairs= get_file_pairs(data_dir, split)
+    dataset_dicts = []
+    data_dir_cur = os.path.join(data_dir,split)
+    assert all(len(files)==2 for files in file_pairs.values() )
+    img_id = 0
+    for idx,tup in enumerate(file_pairs.items()):
+        name, files = tup
+        files.sort()
+        jpg_name,json_name = files
+        #print(jpg_name)
+        #print(cv2.imread(data_dir_cur))
+        height, width = cv2.imread(os.path.join(data_dir_cur,jpg_name)).shape[:2]
+        record = {}
+        record["file_name"] = os.path.join(data_dir_cur,jpg_name)
+        record["image_id"] = idx
+        record["height"] = height
+        record["width"] = width
+        json_file = os.path.join(data_dir_cur,json_name)
+        with open(json_file) as f:
+            imgs_anns = json.load(f)
+        try:
+            #try to access
+            test_poly = imgs_anns['shapes'][0]['points']
+        except(IndexError):
+            print('did not load ',jpg_name,'due to missing/wrong annotations')
+        else:
+            objs = []
+            for shape in imgs_anns['shapes']:
+                poly = shape['points']
+                xs = [point[0] for point in poly]
+                ys = [point[1] for point in poly]
+
+                poly_flatten = []
+                for xy in poly:
+                    poly_flatten.extend(xy)
+
+                obj = {
+                            "bbox": [np.min(xs), np.min(ys), np.max(xs), np.max(ys)],
+                            "bbox_mode": BoxMode.XYXY_ABS,
+                            "segmentation": [poly_flatten],
+                            "category_id": 0,
+                        }
+                objs.append(obj)
+            record["annotations"] = objs
+            dataset_dicts.append(record)
+    return dataset_dicts
+
+
+
 def get_data_dicts(data_dir,split,file_pairs = None):
     '''
     input:
@@ -159,3 +217,4 @@ def register_data(prefix_name,splits,COCO_dicts,metadata):
     return names_result
 
 #img,polys = load_img_and_polys_from_front("/home/madsbr/detectron2/docker/pers_files/test_files","robotcell_all1_color_2021-04-08-13-10-00")
+import pandas as pd

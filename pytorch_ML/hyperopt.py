@@ -22,6 +22,7 @@ def set_device(device):
     compute_device = device
 
 
+
 class Hyperopt():
     def __init__(self,base_path, max_iter, dt, iter_chunk_size ,output_dir,bs = 4,base_params = {},dt_val = None,eval_period = 250,dt_wts = None, val_nr = None,fun_val = None,pruner=None,gpu_id = 0):
         assert fun_val is not None , "please supply a fun val"

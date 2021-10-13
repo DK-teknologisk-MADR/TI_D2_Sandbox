@@ -2,11 +2,11 @@ from collections import OrderedDict
 import torch
 import numpy as np
 import torchvision.models
-from torchvision.models import wide_resnet50_2,resnet50,resnet101
+from torchvision.models import wide_resnet50_2,resnet50,resnet101,resnet18
 from time import time
 import torch.nn as nn
+import torch
 
-#model = wide_resnet50_2(False)
 
 class FChead(nn.Module):
     def __init__(self,dims,dropout_ps = None ,activ_ls = None,device='cuda:0'):
@@ -35,6 +35,7 @@ class FChead(nn.Module):
 
         return x
 
+
 class IOU_Discriminator_Only_Mask(nn.Module):
     def __init__(self,device):
         super(IOU_Discriminator_Only_Mask, self).__init__()
@@ -47,6 +48,19 @@ class IOU_Discriminator_Only_Mask(nn.Module):
         x = self.fchead(x)
         return x
 
+class Classifier(nn.Module):
+    def __init__(self,device = 'cuda:0'):
+        super(Classifier, self).__init__()
+        self.backbone = resnet18()
+        self.fc_out=nn.Linear(1000,1,device=device)
+        self.backbone.to(device)
+        self.sigmoid = nn.Sigmoid()
+    def forward(self,x):
+        x = self.backbone(x)
+        x = self.fc_out(x)
+        if not self.training:
+            x = self.sigmoid(x)
+        return x
 
 class IOU_Discriminator(nn.Module):
     def __init__(self,device = 'cuda:0'):

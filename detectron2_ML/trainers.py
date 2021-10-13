@@ -87,10 +87,9 @@ class Trainer_With_Early_Stop(TI_Trainer):
           return build_detection_train_loader(cfg,mapper=mapper)
     @classmethod
     def build_test_loader(cls, cfg, dataset_name):
-        print('CONSTRUCTING TESTLOADER')
         loader = build_detection_test_loader(cfg, dataset_name)
-        for data in iter(loader):
-            print(data)
+#        for data in iter(loader):
+#            print(data)
         return build_detection_test_loader(cfg, dataset_name)
 
     @classmethod

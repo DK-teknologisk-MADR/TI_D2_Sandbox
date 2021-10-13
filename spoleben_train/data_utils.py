@@ -27,7 +27,6 @@ def bbox2_xyxy_abs(img):
         cmin,rmin,cmax,rmax = (0,0,0,0)
     return cmin,rmin, cmax,rmax
 
-@DeprecationWarning
 def sort_by_prefix(fp):
     print("WARNING DEPRECATIOON: This should not be in spoleben, so i copypasted it to data_utils. Don't use this version, and dont modify it.")
     #file_ls = ["hallo.jpg","hallo.json","hallo_also.jpg","hallibu_dallibu.jpg"]
@@ -199,9 +198,6 @@ def get_data_dicts_masks(data_dir,split,file_pairs,unannotated_ok = False):
     #        overlay = put_mask_overlays( cv2.imread(os.path.join(data_dir_cur,jpg_name)),masks) FOR PLOTTING
     #        checkout_imgs(overlay) FOR PLOTTING
             masks_rle = encode(np.asarray(masks.transpose(1,2,0), order="F"))
-
-            print(len(masks_rle))
-            print(masks.shape)
             objs = []
             for i in range(masks.shape[0]):
                 xmin,ymin,xmax,ymax = bbox2_xyxy_abs(masks[i])

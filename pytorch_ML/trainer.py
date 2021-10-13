@@ -4,6 +4,8 @@ import time
 from torch.utils.data.sampler import WeightedRandomSampler
 from torch.utils.data.dataloader import DataLoader
 import numpy as np
+
+import cv2_utils.cv2_utils
 from pytorch_ML.validators import worst_f1
 
 
@@ -31,6 +33,7 @@ class Trainer():
         self.fun_val = fun_val
         self.val_nr = val_nr
         self.dt_wts = dt_wts
+        print("recieved dt_wts",dt_wts)
         self.best_val_score =-float('inf')
         self.val_score_cur=-float('inf')
 
@@ -40,7 +43,8 @@ class Trainer():
  
     def get_loader(self,dt,bs,wts = None,replacement=True):
         if wts is None:
-            wts = np.ones(len(dt))
+                wts = np.ones(len(dt))
+        print(wts,self.dt_wts)
         sampler = WeightedRandomSampler(weights=wts, num_samples=len(dt), replacement=replacement)
         return DataLoader(dt, batch_size=bs, sampler=sampler, pin_memory=True,num_workers=0)
 
@@ -104,6 +108,15 @@ class Trainer():
                 print("breaking")
                 break
             train_dataloader = iter(self.get_loader(self.dt, self.bs,wts=self.dt_wts))
+
+            label_count = np.zeros(2)
+            print("Trainer: CHECKING DIST ; DLETE AFTER")
+            for data,labels in train_dataloader:
+                for label in labels:
+                    label_count[label] += 1
+            print(label_count)
+            train_dataloader = iter(self.get_loader(self.dt, self.bs,wts=self.dt_wts))
+
             for batch, targets in train_dataloader:
                 time_start = time.time()
                 batch = batch.to(self.gpu_id)
@@ -180,6 +193,7 @@ class Trainer():
                     break
             targets = torch.cat(targets_ls,0)
             outs = torch.cat(out_ls,0) #dim i,j,: gives out if j= 0 and target if j = 1
+            print(targets,outs)
             score = fun(outs,targets)
             score = score.to('cpu')
 
