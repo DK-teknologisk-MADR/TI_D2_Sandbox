@@ -98,11 +98,13 @@ def put_circle_overlays(img,pts,colors=COLOR_LIST,alpha=0.9):
         if isinstance(pts,list):
             pts = np.array(pts)
         if isinstance(pts,np.ndarray):
+            print("Im here",pts.shape[1])
             if pts.shape[1] != 2:
+                print("now im here")
                 if pts.shape[0] == 2:
                     pts = pts.transpose()
-            else:
-                raise ValueError("pts should have dim y X 2, but got",pts.shape)
+                else:
+                    raise ValueError("pts should have dim y X 2, but got",pts.shape)
             for i, point in enumerate(pts):
                 color = colors[i % len(colors)]
                 radius = 10

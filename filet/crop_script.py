@@ -160,7 +160,7 @@ def crop_routine():
 #                        poly_overlay = cv2_utils.cv2_utils.put_polys(my_img, polys)
 #                        cv2.imshow(f"window_after_load{i}", poly_overlay)
 #                        cv2.waitKey()
-crop_routine()
+#crop_routine()
 
 #fp = "/pers_files/Combined_final/to_crop/train/robotcell_all1_color_2021-04-08-10-11-34.jpg"
 #img = cv2.imread(fp)[:515,47:1024-47]
