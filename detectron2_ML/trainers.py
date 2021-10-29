@@ -77,7 +77,7 @@ class Trainer_With_Early_Stop(TI_Trainer):
             self.patience = self.period_between_evals * 15
         else:
             self.patience = patience
-        print("StopBygProgressHooK: Recieved eval period",self.period_between_evals)
+        print("StopByProgressHooK: Recieved eval period",self.period_between_evals)
         self.top_score_achieved = 0
         super().__init__(cfg=cfg,**params_to_Trainer)
     #overwrites default build_train_loader

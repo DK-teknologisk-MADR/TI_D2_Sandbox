@@ -10,7 +10,7 @@ from detectron2_ML.predictors import ModelTester
 import torch
 import torchvision
 from detectron2.utils.visualizer import Visualizer
-from cv2_utils.cv2_utils import get_M_for_mask_balance,warpAffineOnPts
+from cv2_utils.cv2_utils import get_M_for_mask_balance,warpAffineOnPts,tensor_pic_to_imshow_np
 from torch.utils.data import Dataset,DataLoader
 from detectron2.data import MetadataCatalog
 import detectron2.data.transforms as Tr
@@ -293,16 +293,16 @@ class ModelTester3(ModelTester):
 
 
 class ModelTester_Aug(ModelTester3):
-    def __init__(self, p1_aug_iou_th = 0.92,p1_aug_vote_th=5, **kwargs):
+    def __init__(self, p1_aug_iou_th = 0.92,p1_aug_vote_th=5,aug_lower_params = (0.8,0.8),aug_upper_params = (1.2,1.2), **kwargs):
         super().__init__(**kwargs)
         self.p1_aug_iou_th = p1_aug_iou_th
         self.p1_aug_vote_th = p1_aug_vote_th
-        t1min = Tr.RandomContrast(intensity_min=0.75, intensity_max=0.85)
-        t2min = Tr.RandomSaturation(intensity_min=0.75, intensity_max=0.85)
-        t3min = Tr.RandomLighting(0.8)
-        t1max = Tr.RandomContrast(intensity_min=1.15, intensity_max=1.25)
-        t2max = Tr.RandomSaturation(intensity_min=1.15, intensity_max=1.25)
-        t3max = Tr.RandomLighting(1.2)
+        t1min = Tr.RandomContrast(intensity_min=aug_lower_params[0], intensity_max=aug_lower_params[1])
+        t2min = Tr.RandomSaturation(intensity_min=aug_lower_params[0], intensity_max=aug_lower_params[1])
+        t3min = Tr.RandomLighting((aug_lower_params[1] + aug_lower_params[0]) / 2)
+        t1max = Tr.RandomContrast(intensity_min=aug_upper_params[0], intensity_max=aug_upper_params[1])
+        t2max = Tr.RandomSaturation(intensity_min=aug_upper_params[0], intensity_max=aug_upper_params[1])
+        t3max = Tr.RandomLighting((aug_upper_params[1]+aug_upper_params[0]) / 2)
         self.augsmin = Tr.AugmentationList([t1min, t2min, t3min])
         self.augsmax = Tr.AugmentationList([t1max, t2max, t3max])
         self.aug_nr = 8
@@ -312,7 +312,7 @@ class ModelTester_Aug(ModelTester3):
 
     def phase1(self,np_img,gt_masks=None):
         img_trs = []
-        img = self.predictor.aug.get_transform(np_img).apply_image(np_img)
+        img = np_img  #img = self.predictor.aug.get_transform(np_img).apply_image(np_img)
         aug_time_start = time.time()
         inp = Tr.AugInput(img)
         img_ts = torch.tensor(img.astype("float32").transpose(2, 0, 1),device=self.device,requires_grad =False)
@@ -440,6 +440,7 @@ class ModelTester_Aug(ModelTester3):
                     put_text(plt_img,text_string,pos=(50,50),font_size=1,color=text_color)
                     text_string = "sizes: {:.2f}".format(float(sizes_pct[i-1]))
                     put_text(plt_img,text_string,pos=(50,400),font_size=1,color=(0,200,75))
+
                     w = Visualizer(plt_img, MetadataCatalog.get('filets'), scale=1)
               #      print("TESTING IS PLOT PRED MASK AND PREDMASKCP SAME")
               #      print(torch.all(best_instances.pred_masks == masks_ref_bef_res.to('cpu')))
@@ -449,6 +450,7 @@ class ModelTester_Aug(ModelTester3):
                     #                    cv2.imshow("lets plot this",img_plt)
 #                    cv2.waitKey()
                     self.plt_img_dict[f"best_instances{i}"] = img_plt
+                    self.plt_img_dict[f'best_mask{i}'] = best_masks_plot[i-1].numpy().astype(np.uint8) * 255
                     if self.supervised:
                         if self.print_log: print(f"PHASE1PLOT: got instance{i-1} with iou {ious[i-1]} and votes{vote_nrs_reordered[i-1]}")
                     else:

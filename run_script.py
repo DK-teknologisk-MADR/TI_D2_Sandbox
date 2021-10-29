@@ -21,6 +21,7 @@ p2_model_dir ="/pers_files/mask_models_pad_mask35_TV/classi_net1_TV/model7"
 fixed_parameters = { "p2_crop_size" : [[200, 1024 - 200], [100, 1024 - 100]] , "p2_resize_shape" : (693,618)}
 kpts_out = 21 #feel free to change this
 tester = ModelTester3(os.path.join(p1_model_dir, 'cfg.yaml'), os.path.join(p1_model_dir, 'best_model.pth'), os.path.join(p2_model_dir, "best_model.pth"), p3_kpts_nr=kpts_out, p2_crop_size=fixed_parameters["p2_crop_size"], p2_resize_shape = fixed_parameters["p2_resize_shape"], device='cuda:1')
+
 #use method .get_key_points(img) for getting keypoints.
 #preprocessing before inserting into model:
 #  -crop / resize to 1024/1024.

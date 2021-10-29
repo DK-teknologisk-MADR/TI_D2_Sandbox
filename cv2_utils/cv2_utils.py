@@ -2,7 +2,6 @@ import json
 import os
 import cv2
 import numpy as np
-import torch
 
 COLOR_LIST = [(220,120,0),(0,220,120),(155,155,120),(200,185,210),(215,210,142),(215,133,14),(45,170,220),(45,90,132),(0,174,225),(95,0,225),(175,194,44)]
 def put_text(img,text,pos = None,font_size = 2,color=(255,0,0)):
@@ -39,7 +38,13 @@ def put_polys(img,new_polys,color=(255,0,0)):
                           isClosed, color, thickness)
     return poly_overlay
 
+def masks_as_color_imgs(masks):
+    return np.repeat(np.expand_dims(masks, -1), 3, axis=-1)
+
+
 def centroid_of_mask_in_xy(mask):
+    if mask.dtype == np.bool:
+        mask = mask.copy().astype('uint8')
     moms = cv2.moments(mask,binaryImage=True)
     cx = moms['m10']/moms['m00']
     cy = moms['m01']/moms['m00']
@@ -151,6 +156,8 @@ def put_poly_overlays(img,new_polys,colors=COLOR_LIST,alpha = 0.5):
         cv2.addWeighted(overlay, alpha, filled, 1 - alpha, 0, overlay)
     return overlay
 #colors=[(220,120,0),(0,220,120),(155,155,120)]
+
+
 def checkout_imgs(imgs):
     if isinstance(imgs,np.ndarray):
         if imgs.ndim >3:
@@ -178,3 +185,15 @@ def load_img_and_polys_from_front(datadir,front):
     if img is None:
         raise ValueError("There seems to be no picture at path",img_path)
     return img,polys
+
+
+def get_largest_component(mask,connectivity = 4):
+    '''
+    return 1 / 0 mask of largest component
+    '''
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, connectivity=connectivity)
+    area = stats[:,4]
+    area_index_sorted = 1 + np.flip(np.argsort(area[1:])) #area[1: to discard background
+    label_of_biggest = area_index_sorted[0]
+    return np.where(labels == label_of_biggest,255,0).astype('uint8')
+

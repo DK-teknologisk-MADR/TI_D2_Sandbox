@@ -92,26 +92,28 @@ def load_masks(fp_ls):
         masks.append(mask)
     return masks
 
-def load_and_batch_masks(fp_ls,mask_keyword = None):
+def load_and_batch_masks(fp_ls,mask_keywords = None):
     'loads all masks,in fp list. If mask_keyword is not none: Only load those with keyword in name.'
     fp_ls_to_print = copy.copy(fp_ls)
-    if mask_keyword is not None:
-        print(mask_keyword)
-        for fp in fp_ls:
-            print(fp)
-            print(mask_keyword in os.path.basename(fp))
-            print(os.path.basename(fp))
-            print(mask_keyword)
-        fp_ls = [fp for fp in fp_ls if mask_keyword in os.path.basename(fp)]
-    masks = load_masks(fp_ls)
+    mask_keywords = [st.lower() for st in mask_keywords]
+
+    if mask_keywords is not None:
+        print("MASK_KEYWORDS",mask_keywords)
+    mask_fp_ls = []
+    for fp in fp_ls:
+        is_mask = any(mask_keyword in os.path.basename(fp).lower() for mask_keyword in mask_keywords)
+        print(is_mask,fp)
+        if is_mask:
+            mask_fp_ls.append(fp)
+    masks = load_masks(mask_fp_ls)
     if masks:
         h,w = masks[0].shape
         for i,mask in enumerate(masks):
             if mask.shape != masks[0].shape:
-                raise ValueError("mask from file ",fp_ls[i], "are not of the same shape as ",fp_ls[0])
+                raise ValueError("mask from file ",mask_fp_ls[i], "are not of the same shape as ",mask_fp_ls[0])
         mask_batch = np.array(masks,dtype='bool')
     else:
-        print("load_and_batch_masks: Did not load any masks in ",fp_ls)
+        print("load_and_batch_masks: Did not load any masks in ",mask_fp_ls)
     return mask_batch
 
 def get_small_masks(masks,small_th):

@@ -21,9 +21,8 @@ from numpy import random
 from detectron2_ML.data_utils import get_data_dicts, register_data , get_file_pairs,sort_by_prefix
 from spoleben_train.data_utils import get_data_dicts_masks
 from detectron2_ML.transforms import RemoveSmallest , CropAndRmPartials,RandomCropAndRmPartials
-splits = ['']
-
-data_dir = '/pers_files/spoleben/spoleben_09_2021/spoleben_batched'
+splits = ['train','val']
+data_dir = '/pers_files/spoleben/spoleben_09_2021/spoleben_for_training'
 file_pairs = { split : sort_by_prefix(os.path.join(data_dir,split)) for split in splits }
 #file_pairs = { split : get_file_pairs(data_dir,split,sorted=True) for split in splits }
 COCO_dicts = {split: get_data_dicts_masks(data_dir,split,file_pairs[split]) for split in splits } #converting TI-annotation of pictures to COCO annotations.
@@ -37,17 +36,20 @@ def initialize_base_cfg(model_name,cfg=None):
     if cfg is None:
         cfg = get_cfg()
     cfg.merge_from_file(model_zoo.get_config_file(f'{model_name}.yaml'))
-    cfg.DATASETS.TRAIN = (data_names[''],)
-    cfg.DATASETS.TEST = (data_names[''],) # Use this with trainer_cls : TrainerPeriodicEval if you want to do validation every #.TEST.EVAL_PERIOD iterations
+    cfg.DATASETS.TRAIN = (data_names['train'],)
+    cfg.DATASETS.TEST = (data_names['val'],) # Use this with trainer_cls : TrainerPeriodicEval if you want to do validation every #.TEST.EVAL_PERIOD iterations
     cfg.TEST.EVAL_PERIOD = 200 #set >0 to activate evaluation
     cfg.DATALOADER.NUM_WORKERS = 6 #add more workerss until it gives warnings.
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(f'{model_name}.yaml')
-    cfg.SOLVER.IMS_PER_BATCH = 2 #maybe more?
+    cfg.SOLVER.IMS_PER_BATCH = 4 #maybe more?
     cfg.OUTPUT_DIR = f'{output_dir}/{model_name}_output_eval'
-    cfg.SOLVER.BASE_LR = 0.000
+    cfg.SOLVER.BASE_LR = 0.0001
     cfg.SOLVER.MAX_ITER = 90000000
     cfg.INPUT.MASK_FORMAT = "bitmask"
-    cfg.INPUT.MIN_SIZE_TEST = 0
+    cfg.INPUT.MIN_SIZE_TEST = 450
+    cfg.INPUT.MAX_SIZE_TEST = 450
+    cfg.INPUT.MIN_SIZE_TRAIN = (450,450) #min size train SKAL være tuple ved prediction af en eller anden årsag.
+    cfg.INPUT.MAX_SIZE_TRAIN = 450
     cfg.SOLVER.WARMUP_ITERS = 200
     cfg.SOLVER.WARMUP_FACTOR = 1.0 / cfg.SOLVER.WARMUP_ITERS
     cfg.SOLVER.STEPS = [] #cfg.SOLVER.STEPS = [2000,4000] would decay LR by cfg.SOLVER.GAMMA at steps 2000,4000
@@ -64,29 +66,29 @@ cfg = initialize_base_cfg(model_name)
 augmentations = [
           RandomCropAndRmPartials(0.3,(450,450)),
           T.RandomRotation(angle=[-10, 10], expand=False, center=None, sample_style='range'),
-  #        T.RandomApply(T.RandomCrop('absolute',(400,400)),prob=0.75),
           T.RandomFlip(prob=0.5, horizontal=True, vertical=False),
           T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
           T.RandomBrightness(0.75,1.25),
           T.RandomSaturation(0.75,1.25),
+          T.RandomContrast(0.75,1.1)
 ]
 
 
-img_basename = 'kinect_20210916_102523_color__ID193'
-img = cv2.imread(os.path.join(data_dir,'',img_basename + ".jpg"))
-masks = np.load(os.path.join(data_dir,'',img_basename + "_masks.npy"))
-aug = T.AugmentationList(augmentations)
-inp = T.AugInput(image=img)
-tr = aug(inp)
-a = tr.apply_image(img)
-masks = [ tr.apply_segmentation(mask.astype('uint8') * 255) for mask in masks]
+#img_basename = 'kinect_20210916_102523_color__ID193'
+#img = cv2.imread(os.path.join(data_dir,'',img_basename + ".jpg"))
+#masks = np.load(os.path.join(data_dir,'',img_basename + "_masks.npy"))
+#aug = T.AugmentationList(augmentations)
+#inp = T.AugInput(image=img)
+#tr = aug(inp)
+#a = tr.apply_image(img)
+#masks = [ tr.apply_segmentation(mask.astype('uint8') * 255) for mask in masks]
 
-checkout_imgs(masks[0])
-colors = list(RGB_TO_COLOR_DICT.keys()).copy()
-np.random.shuffle(colors)
-mask_new = put_mask_overlays(a,masks,colors)
+#checkout_imgs(masks[0])
+#colors = list(RGB_TO_COLOR_DICT.keys()).copy()
+#np.random.shuffle(colors)
+#mask_new = put_mask_overlays(a,masks,colors)
 
-checkout_imgs(mask_new)
+#checkout_imgs(mask_new)
 # pairs = sort_by_prefix(os.path.join(data_dir,'train'))
 # for front,pair in pairs.items():
 #     jpg,npy = pair
@@ -136,9 +138,8 @@ class D2_Hyperopt_Spoleben(D2_hyperopt_Base):
         hps = [
 #            (['model', 'anchor_generator', 'sizes'], self.suggest_helper_size()),
             (['SOLVER','MOMENTUM'],np.random.uniform(0.85,0.95)),
-            (['SOLVER','BASE_LR'],float(random.uniform(0.1,2)*4 * random.choice([0.001,0.0001]))),
+            (['SOLVER','BASE_LR'],float(random.uniform(0.1,2) * random.choice([0.001,0.0001]))),
 #            (['model', 'anchor_generator', 'aspect_ratios'], random.choice([[0.75,1.0, 1.5], [0.5, 1.0, 2.0], [1.0]])),
-            (['MODEL','ROI_HEADS','NMS_THRESH_TEST'], random.uniform(0.5,0.7)),
            (['MODEL','RPN','NMS_THRESH'],random.uniform(0.55, 0.85)),
             (['MODEL','RPN','POST_NMS_TOPK_TRAIN'], random.randint(500,1000)),
         ]
@@ -151,14 +152,14 @@ class D2_Hyperopt_Spoleben(D2_hyperopt_Base):
 trainer_params = {'augmentations' : augmentations}
 task = 'segm'
 score_name = 'AP'
-evaluator = COCOEvaluator(data_names[''],("bbox", "segm"), False,cfg.OUTPUT_DIR)
+evaluator = COCOEvaluator(data_names['val'],("segm",), False,cfg.OUTPUT_DIR)
 #evaluator = MeatPickEvaluator(COCO_dicts[''],top_n_ious=3)
 
 #CropAndRmPartials(partial_crop_pct=0.5)
 #hyperoptimization object that uses model_dict to use correct model, and get all hyper-parameters.
 #optimized after "task" as computed by "evaluator". The pruner is (default) SHA, with passed params pr_params.
 #number of trials, are chosen so that the maximum total number of steps does not exceed max_iter.
-hyp = D2_Hyperopt_Spoleben(model_name,cfg_base=cfg,data_val_name = data_names[''],task=task,evaluator=evaluator,step_chunk_size=598,output_dir=output_dir,pruner_cls=SHA,max_iter = 1000000,trainer_params=trainer_params,pr_params={'factor' : 4, 'topK' : 4})
+hyp = D2_Hyperopt_Spoleben(model_name,cfg_base=cfg,data_val_name = data_names['val'],task=task,evaluator=evaluator,step_chunk_size=598,output_dir=output_dir,pruner_cls=SHA,max_iter = 1000000,trainer_params=trainer_params,pr_params={'factor' : 4, 'topK' : 1})
 best_models = hyp.start()
 #returns pandas object
 print(best_models) 

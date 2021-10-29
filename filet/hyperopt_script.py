@@ -36,8 +36,8 @@ class D2_hyperopt(D2_hyperopt_Base):
             (['model', 'backbone', 'freeze_at'], random.randint(0, 3)),
             (['model', 'anchor_generator', 'sizes'],self.suggest_helper(random.randint(0,3))),
             (['model', 'anchor_generator', 'aspect_ratios'], random.choice([[0.5, 1.0, 2.0], [0.25, 0.5, 1.0, 2.0],[0,25,0.5, 1.0]])),
-            (['solver', 'BASE_LR'], random.uniform(0.0001, 0.0004)),
-            (['model', 'roi_heads', 'batch_size_per_image'], int(random.choice([128, 256, 512]))),
+            (['solver', 'BASE_LR'], random.uniform(0.001, 0.01)),
+            (['model', 'roi_heads', 'batch_size_per_image'],),
         ]
         return hps
 
@@ -56,10 +56,12 @@ def initialize_base_cfg(model_name,output_dir,cfg=None):
     cfg.merge_from_file(model_zoo.get_config_file(f'{model_name}.yaml'))
     cfg.DATASETS.TRAIN = (data_names['train'],)
     cfg.DATASETS.TEST = []
+    cfg.TEST.MIN_SIZE = 0
+    cfg.TEST.MAX_SIZE = 0
     cfg.TEST.EVAL_PERIOD = 0 #set >0 to activate evaluation
     cfg.DATALOADER.NUM_WORKERS = 6 #add more workerss until it gives warnings.
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url(f'{model_name}.yaml')
-    cfg.SOLVER.IMS_PER_BATCH = 4 #maybe more?
+    cfg.SOLVER.IMS_PER_BATCH = 5 #maybe more?
     cfg.OUTPUT_DIR = f'{output_dir}/{model_name}_output'
     cfg.SOLVER.WARMUP_ITERS = 500
     os.makedirs(f'{output_dir}/{model_name}_output',exist_ok=True)
@@ -73,25 +75,15 @@ output_dir = f'{data_dir}/output'
 
 # model_name2 = 'COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x'
 cfg = initialize_base_cfg(model_name,output_dir)
-print("------------------------------------------")
-print("------------------------------------------")
-print("------------------------------------------")
-print("------------------------------------------")
 
-print(cfg.SOLVER.WARMUP_ITERS)
-print("------------------------------------------")
-print("------------------------------------------")
-print("------------------------------------------")
-print("------------------------------------------")
-print("------------------------------------------")
 
 task = 'segm'
 evaluator = COCOEvaluator(data_names['val'],("segm",), False,cfg.OUTPUT_DIR)
-round1 = D2_hyperopt(model_name,cfg,data_val_name=data_names['val'],task=task,evaluator=evaluator,output_dir=output_dir,step_chunk_size=600,max_iter=100000,pr_params={'factor' : 4,'topK' : 4})
+round1 = D2_hyperopt(model_name,cfg,data_val_name=data_names['val'],task=task,evaluator=evaluator,output_dir=output_dir,step_chunk_size=600,max_iter=100000,pr_params={'factor' : 4,'topK' : 1})
 res1 = round1.start()
 output_dir2 = f"{data_dir}/output2"
-cfg = initialize_base_cfg(model_name,output_dir2)
-round2 = D2_hyperopt(model_name,cfg,data_val_name=data_names['val'],task=task,evaluator=evaluator,output_dir=output_dir2,step_chunk_size=130,max_iter=100000,pr_params={'factor' : 3, 'topK' : 3})
-res2 = round2.start()
-print(res1)
-print(res2)
+#cfg = initialize_base_cfg(model_name,output_dir2)
+#round2 = D2_hyperopt(model_name,cfg,data_val_name=data_names['val'],task=task,evaluator=evaluator,output_dir=output_dir2,step_chunk_size=130,max_iter=100000,pr_params={'factor' : 3, 'topK' : 3})
+#res2 = round2.start()
+#print(res1)
+#print(res2)

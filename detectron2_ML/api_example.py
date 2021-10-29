@@ -69,7 +69,7 @@ class D2_hyperopt(D2_hyperopt_Base):
 #model_name = "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x"
 model_name = 'COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x'
 cfg = initialize_base_cfg(model_name)
-task = 'bbox'
+task = 'segm'
 evaluator = COCOEvaluator(data_names['val'],("bbox", "segm"), False,cfg.OUTPUT_DIR)
 
 #hyperoptimization object that uses model_dict to use correct model, and get all hyper-parameters.

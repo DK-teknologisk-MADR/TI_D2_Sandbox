@@ -3,7 +3,6 @@ from copy import deepcopy
 from torchvision.transforms import ColorJitter,RandomAffine,Normalize,ToTensor,RandomCrop,RandomVerticalFlip,RandomHorizontalFlip,Compose
 from cv2_utils.cv2_utils import *
 from detectron2.config import get_cfg
-
 import torch
 from detectron2_ML.evaluators import Consistency_Evaluator
 from detectron2.data import DatasetMapper, build_detection_train_loader
@@ -28,9 +27,9 @@ data = COCO_dicts[""]
 
 #FOR TESTING#
 cfg = get_cfg()
-cfg.merge_from_file('/pers_files/spoleben/spoleben_09_2021/output_test/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_6_output/cfg.yaml')
-cfg.OUTPUT_DIR = '/pers_files/spoleben/spoleben_09_2021/output_test/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_6_output'
-cfg.MODEL.WEIGHTS = '/pers_files/spoleben/spoleben_09_2021/output_test/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_6_output/best_model.pth'
+cfg.merge_from_file('/pers_files/spoleben/spoleben_09_2021/output_22-10/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_226_output/cfg.yaml')
+cfg.OUTPUT_DIR = '/pers_files/spoleben/spoleben_09_2021/output_22-10/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_226_output'
+cfg.MODEL.WEIGHTS = '/pers_files/spoleben/spoleben_09_2021/output_22-10/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_226_output/best_model.pth'
 cfg.INPUT.MIN_SIZE_TEST=450
 
 data_ls = deepcopy(COCO_dicts[''])

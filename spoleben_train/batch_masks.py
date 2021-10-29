@@ -5,6 +5,7 @@ from spoleben_train.Tilings import Tilings
 from detectron2_ML.data_utils import sort_by_prefix
 from spoleben_train.data_utils import load_and_batch_masks
 import os
+import os.path as path
 import shutil
 
 #crop = 200,250,800,1400
@@ -16,14 +17,15 @@ import shutil
 #subfolder_aug = ["Direct","Tilted","Rotated"]
 #subfolder_filled = ["15","30","45","60","85","100"]
 
-def batch_masks_in_dir(dir_from,dir_to,cropx0y0x1y1 = None,mask_keyword=True):
+def batch_masks_in_dir(dir_from,dir_to,cropx0y0x1y1 = None,mask_keywords=None):
+    mask_keywords = [st.lower() for st in mask_keywords]
     file_pairs = sort_by_prefix(dir_from)
     print(file_pairs)
     for key, value in file_pairs.items():
         if len(value) > 1:
             img = cv2.imread(os.path.join(dir_from, value[0]))
             fp_ls = [os.path.join(dir_from, name) for name in value[1:] if name.endswith(".png")]
-            res = load_and_batch_masks(fp_ls,mask_keyword=mask_keyword)
+            res = load_and_batch_masks(fp_ls,mask_keywords=mask_keywords)
             if cropx0y0x1y1 is not None:
                 x0,y0,x1,y1 = cropx0y0x1y1
                 res = res[:,y0:y1,x0:x1]
@@ -38,15 +40,17 @@ def batch_masks_in_dir(dir_from,dir_to,cropx0y0x1y1 = None,mask_keyword=True):
             np.save(os.path.join(dir_to, key) + "_masks.npy", res)
             cv2.imwrite(os.path.join(dir_to, value[0]),img)  # copy
 
-def black_out_masks_in_dir(dir_from,dir_to,cropx0y0x1y1 = None,mask_keyword = None):
+def black_out_masks_in_dir(dir_from,dir_to,cropx0y0x1y1 = None,mask_keywords = None):
+    mask_keywords = [st.lower() for st in mask_keywords]
     file_pairs = sort_by_prefix(dir_from)
+    print(mask_keywords)
     print(file_pairs)
     for key, value in file_pairs.items():
         if len(value) > 1:
             img = cv2.imread(os.path.join(dir_from, value[0]))
             fp_ls = [os.path.join(dir_from, name) for name in value[1:] if name.endswith(".png")]
             try:
-                res = load_and_batch_masks(fp_ls,mask_keyword=mask_keyword)
+                res = load_and_batch_masks(fp_ls,mask_keywords=mask_keywords)
             except:
                 print("there seems to be no masks to blackout for files",fp_ls)
             else:
@@ -70,3 +74,13 @@ def black_out_masks_in_dir(dir_from,dir_to,cropx0y0x1y1 = None,mask_keyword = No
 #         dir=os.path.join(base_dir,direction,fillup)
 #        batch_masks_in_dir(dir,new_dir,(330,180,1450,820))
 #         batch_masks_in_dir(dir,new_dir)
+def visualize_masks(dir,nr = None):
+    names = [file for file in os.listdir(dir) if file.endswith(".jpg")]
+    if nr is not None and len(names)>nr:
+        files = names[:-nr]
+    for name in names:
+        front = name.split(".")[0]
+        img = cv2.imread(path.join(dir,name))
+        masks = np.load(path.join(dir,front + "_masks.npy"))
+        ol = put_mask_overlays(img,masks)
+        checkout_imgs([img,ol])
