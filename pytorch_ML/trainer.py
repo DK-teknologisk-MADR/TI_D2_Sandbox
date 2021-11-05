@@ -4,7 +4,7 @@ import time
 from torch.utils.data.sampler import WeightedRandomSampler
 from torch.utils.data.dataloader import DataLoader
 import numpy as np
-
+from torch.optim import SGD
 import cv2_utils.cv2_utils
 from pytorch_ML.validators import worst_f1
 
@@ -15,7 +15,6 @@ class Trainer():
         #validation_variables = {'dt_val' : dt_val, 'eval_period' : eval_period, 'fun_val' : fun_val}
         val_nones = [x is None for x in validation_stuff]
         assert all(val_nones) or not any(val_nones) , "some val variables seems to be none while some are not"
-
         self.net = net
         self.optimizer = optimizer
         self.scheduler = scheduler
@@ -38,7 +37,6 @@ class Trainer():
         self.val_score_cur=-float('inf')
 
         self.net.to('cuda:'+str(self.gpu_id))
-
 
  
     def get_loader(self,dt,bs,wts = None,replacement=True):

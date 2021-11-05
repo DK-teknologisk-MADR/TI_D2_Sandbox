@@ -302,7 +302,7 @@ class ModelTester_Aug(ModelTester3):
         t3min = Tr.RandomLighting((aug_lower_params[1] + aug_lower_params[0]) / 2)
         t1max = Tr.RandomContrast(intensity_min=aug_upper_params[0], intensity_max=aug_upper_params[1])
         t2max = Tr.RandomSaturation(intensity_min=aug_upper_params[0], intensity_max=aug_upper_params[1])
-        t3max = Tr.RandomLighting((aug_upper_params[1]+aug_upper_params[0]) / 2)
+        t3max = Tr.RandomLighting((aug_upper_params[1] + aug_upper_params[0]) / 2)
         self.augsmin = Tr.AugmentationList([t1min, t2min, t3min])
         self.augsmax = Tr.AugmentationList([t1max, t2max, t3max])
         self.aug_nr = 8
@@ -476,7 +476,6 @@ class ModelTester_Aug(ModelTester3):
         #print(vote_ls)
         #self.show_result(masks_ref,masks_aug_ts,vote_ls)
         vote_nrs = np.array([len(votes) for votes in vote_ls])
-
         best_vote_indices = np.argsort(-vote_nrs) #equialent to argsoting vote_nrs descending
        # print("vote_nrs are",vote_nrs)
         if len(best_vote_indices)>self.n_biggest:

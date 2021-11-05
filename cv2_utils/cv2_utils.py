@@ -197,3 +197,6 @@ def get_largest_component(mask,connectivity = 4):
     label_of_biggest = area_index_sorted[0]
     return np.where(labels == label_of_biggest,255,0).astype('uint8')
 
+def imread_as_rgb(img,**args):
+    img = cv2.imread(img,**args)
+    img = img[:,:,::-1].copy()

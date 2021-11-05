@@ -61,3 +61,8 @@ def split_by_ending(file_name):
 
 
 
+def get_file_with_ending(data_dir,ending):
+    for file in os.listdir(data_dir):
+        if file.endswith(ending):
+            return file
+    raise ValueError("did not find any such file")

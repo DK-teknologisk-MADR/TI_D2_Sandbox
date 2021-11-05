@@ -6,8 +6,8 @@ from torchvision.models import wide_resnet50_2,resnet50,resnet101,resnet18
 from time import time
 import torch.nn as nn
 import torch
-
-
+from efficientnet_pytorch import EfficientNet
+model = EfficientNet.from_pretrained("efficientnet-b4", advprop=True)
 class FChead(nn.Module):
     def __init__(self,dims,dropout_ps = None ,activ_ls = None,device='cuda:0'):
         super().__init__()
@@ -49,17 +49,21 @@ class IOU_Discriminator_Only_Mask(nn.Module):
         return x
 
 class Classifier(nn.Module):
-    def __init__(self,device = 'cuda:0'):
+    def __init__(self,device = 'cuda:0',backbone=None):
         super(Classifier, self).__init__()
-        self.backbone = resnet18()
-        self.fc_out=nn.Linear(1000,1,device=device)
+        if backbone is None:
+            self.backbone = resnet18()
+        else:
+            self.backbone=backbone
         self.backbone.to(device)
         self.sigmoid = nn.Sigmoid()
     def forward(self,x):
         x = self.backbone(x)
-        x = self.fc_out(x)
+        print(x)
         if not self.training:
+            print('im evaluating')
             x = self.sigmoid(x)
+            print(x)
         return x
 
 class IOU_Discriminator(nn.Module):
