@@ -306,7 +306,7 @@ class ModelTester_Aug(ModelTester3):
         self.augsmin = Tr.AugmentationList([t1min, t2min, t3min])
         self.augsmax = Tr.AugmentationList([t1max, t2max, t3max])
         self.aug_nr = 8
-        self.translations_pcts = [[0.01,0.04,-0.3,-0.45],[0.04,-0.02,0.3,-0.045]] #magic numbers, but below 5%
+        self.translations_pcts = [[0.01,0.04,-0.03,-0.045],[0.04,-0.02,0.03,-0.045]] #magic numbers, but below 5%
         self.translation_tuples = [(self.w * self.translations_pcts[0][translation_index],self.h * self.translations_pcts[1][translation_index]) for translation_index in range(self.aug_nr//2)]
         if self.print_log: print("instantiated augmentation translation tuples to",self.translation_tuples)
 

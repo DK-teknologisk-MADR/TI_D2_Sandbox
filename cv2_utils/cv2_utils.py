@@ -51,7 +51,7 @@ def centroid_of_mask_in_xy(mask):
     return cx,cy
 
 def tensor_pic_to_imshow_np(tens_inp,mask=False):
-    tens = tens_inp.to('cpu')
+    tens = tens_inp.to('cpu').clone()
     if tens.ndim == 3: #color pic
         if tens.shape[0] == 1:
             tens_new = tens[1:]
@@ -158,7 +158,9 @@ def put_poly_overlays(img,new_polys,colors=COLOR_LIST,alpha = 0.5):
 #colors=[(220,120,0),(0,220,120),(155,155,120)]
 
 
-def checkout_imgs(imgs):
+def checkout_imgs(imgs,channel_mode : str = "") -> None:
+    #SET DEFAULTS:
+    channel_mode = channel_mode.upper()
     if isinstance(imgs,np.ndarray):
         if imgs.ndim >3:
             raise ValueError("provide either img of shape hxwx3 or hxw, or provide a list of such imgs. shape of input img is",imgs.shape)
@@ -170,7 +172,11 @@ def checkout_imgs(imgs):
     else:
         titles = [f'img_{i}' for i in range(len(imgs))]
     for title,img in zip(titles,imgs):
-        cv2.imshow(title,img)
+        if channel_mode == "RGB" and img.ndim == 3:
+            plot_img = img[:,:,::-1]
+        else:
+            plot_img = img
+        cv2.imshow(title,plot_img)
     cv2.waitKey()
     cv2.destroyAllWindows()
 
@@ -199,4 +205,7 @@ def get_largest_component(mask,connectivity = 4):
 
 def imread_as_rgb(img,**args):
     img = cv2.imread(img,**args)
+    if img is None:
+        raise ValueError(f"did not read anything from {img}")
     img = img[:,:,::-1].copy()
+    return img

@@ -7,7 +7,6 @@ from time import time
 import torch.nn as nn
 import torch
 from efficientnet_pytorch import EfficientNet
-model = EfficientNet.from_pretrained("efficientnet-b4", advprop=True)
 class FChead(nn.Module):
     def __init__(self,dims,dropout_ps = None ,activ_ls = None,device='cuda:0'):
         super().__init__()
@@ -49,22 +48,41 @@ class IOU_Discriminator_Only_Mask(nn.Module):
         return x
 
 class Classifier(nn.Module):
-    def __init__(self,device = 'cuda:0',backbone=None):
+    '''
+    Classifier for resnet
+    '''
+    def __init__(self,device = 'cuda:0',backbone=None,output_nr = 1):
         super(Classifier, self).__init__()
         if backbone is None:
             self.backbone = resnet18()
         else:
             self.backbone=backbone
         self.backbone.to(device)
+        self.output = nn.LazyLinear(output_nr,device = device)
         self.sigmoid = nn.Sigmoid()
     def forward(self,x):
         x = self.backbone(x)
-        print(x)
+        x = self.output(x)
         if not self.training:
-            print('im evaluating')
             x = self.sigmoid(x)
-            print(x)
         return x
+
+
+class Classifier_Effnet(nn.Module):
+    '''
+    Classifier for efficientnet
+    '''
+    def __init__(self,device,**kwargs):
+        super(Classifier_Effnet, self).__init__()
+        self.backbone = EfficientNet.from_pretrained(**kwargs).to('cuda')
+        self.backbone.to(device)
+        self.sigmoid = nn.Sigmoid()
+    def forward(self,x):
+        x = self.backbone(x)
+        if not self.training:
+            x = self.sigmoid(x)
+        return x
+
 
 class IOU_Discriminator(nn.Module):
     def __init__(self,device = 'cuda:0'):

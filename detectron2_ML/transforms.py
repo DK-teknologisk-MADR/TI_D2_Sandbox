@@ -126,6 +126,19 @@ class RandomCropAndRmPartials(T.Augmentation):
         return tr
 
 
+
+class RandomChoiceAugmentation(T.Augmentation):
+    def __init__(self,aug_ls):
+        super().__init__()
+        self.aug_ls = aug_ls
+    def get_transform(self, image):
+        aug = np.random.choice(self.aug_ls)
+        tr = aug.get_transform(image)
+        return tr
+
+
+
+
 #
 # tr = CropAndRmPartials(0.5,220,50,500,300,530,910)
 # checkout_imgs(tr.apply_image(img))

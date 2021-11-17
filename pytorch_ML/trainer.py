@@ -42,7 +42,6 @@ class Trainer():
     def get_loader(self,dt,bs,wts = None,replacement=True):
         if wts is None:
                 wts = np.ones(len(dt))
-        print(wts,self.dt_wts)
         sampler = WeightedRandomSampler(weights=wts, num_samples=len(dt), replacement=replacement)
         return DataLoader(dt, batch_size=bs, sampler=sampler, pin_memory=True,num_workers=0)
 
@@ -107,20 +106,12 @@ class Trainer():
                 break
             train_dataloader = iter(self.get_loader(self.dt, self.bs,wts=self.dt_wts))
 
-            label_count = np.zeros(2)
-            print("Trainer: CHECKING DIST ; DLETE AFTER")
-            for data,labels in train_dataloader:
-                for label in labels:
-                    label_count[label] += 1
-            print(label_count)
-            train_dataloader = iter(self.get_loader(self.dt, self.bs,wts=self.dt_wts))
-
             for batch, targets in train_dataloader:
                 time_start = time.time()
                 batch = batch.to(self.gpu_id)
                 targets = targets.to(self.gpu_id)
                 with torch.set_grad_enabled(True):
-                    out = self.net(batch).flatten()
+                    out = self.net(batch)
                     targets = targets.float()
                     loss = self.loss_fun(out, targets)
                     loss.backward()
@@ -183,7 +174,7 @@ class Trainer():
                 instances_nr += batch.shape[0]
                 batch = batch.to(self.gpu_id)
                 target_batch = targets.to(self.gpu_id).to(aggregate_device)
-                out_batch= self.net(batch).flatten().to(aggregate_device)
+                out_batch= self.net(batch).to(aggregate_device)
                 assert target_batch.shape == out_batch.shape # delete this when module is tested
                 targets_ls.append(target_batch)
                 out_ls.append(out_batch)

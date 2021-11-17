@@ -30,5 +30,5 @@ img_out_exp = cv2.imread(test_img_expected_path)
 img_with_pts = cv2_utils.put_circle_overlays(img_in,pts)
 img_dict = {img_name : img for img_name,img in zip(['in','out','expected_out'],[img_in,img_with_pts,img_out_exp])}
 plot_dict = tester.plt_img_dict
-cv2_utils.checkout_imgs(plot_dict)
+checkout_imgs(plot_dict,'rgb')
 

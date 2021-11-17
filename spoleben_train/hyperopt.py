@@ -20,7 +20,7 @@ from datetime import datetime
 from numpy import random
 from detectron2_ML.data_utils import get_data_dicts, register_data , get_file_pairs,sort_by_prefix
 from spoleben_train.data_utils import get_data_dicts_masks
-from detectron2_ML.transforms import RemoveSmallest , CropAndRmPartials,RandomCropAndRmPartials
+from detectron2_ML.transforms import RemoveSmallest , CropAndRmPartials,RandomCropAndRmPartials,RandomChoiceAugmentation
 splits = ['train','val']
 data_dir = '/pers_files/spoleben/spoleben_09_2021/spoleben_for_training'
 file_pairs = { split : sort_by_prefix(os.path.join(data_dir,split)) for split in splits }
@@ -63,14 +63,16 @@ def initialize_base_cfg(model_name,cfg=None):
 #model_name = "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x"
 model_name = 'COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x'
 cfg = initialize_base_cfg(model_name)
+crop_aug = RandomChoiceAugmentation([RandomCropAndRmPartials(0.3,(375,375)),RandomCropAndRmPartials(0.3,(450,450)),RandomCropAndRmPartials(0.3,(525,525))])
 augmentations = [
-          RandomCropAndRmPartials(0.3,(450,450)),
+          crop_aug,
+          T.Resize((450,450)),
           T.RandomRotation(angle=[-10, 10], expand=False, center=None, sample_style='range'),
           T.RandomFlip(prob=0.5, horizontal=True, vertical=False),
           T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
           T.RandomBrightness(0.75,1.25),
           T.RandomSaturation(0.75,1.25),
-          T.RandomContrast(0.75,1.1)
+          T.RandomContrast(0.8,1.1)
 ]
 
 
@@ -81,6 +83,7 @@ augmentations = [
 #inp = T.AugInput(image=img)
 #tr = aug(inp)
 #a = tr.apply_image(img)
+#checkout_imgs(a)
 #masks = [ tr.apply_segmentation(mask.astype('uint8') * 255) for mask in masks]
 
 #checkout_imgs(masks[0])

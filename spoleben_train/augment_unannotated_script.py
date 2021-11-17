@@ -18,17 +18,19 @@ from detectron2_ML.trainers import TrainerPeriodicEval
 from detectron2_ML.hyperoptimization import D2_hyperopt_Base
 from numpy import random
 from detectron2_ML.data_utils import get_data_dicts, register_data , get_file_pairs,sort_by_prefix
-from detectron2_ML.transforms import RemoveSmallest , CropAndRmPartials,RandomCropAndRmPartials
+from detectron2_ML.transforms import RemoveSmallest , CropAndRmPartials,RandomCropAndRmPartials,RandomChoiceAugmentation
 import os.path as path
+crop_aug = RandomChoiceAugmentation([RandomCropAndRmPartials(0.3,(375,375)),RandomCropAndRmPartials(0.3,(450,450)),RandomCropAndRmPartials(0.3,(525,525))])
 augmentations = [
-          RandomCropAndRmPartials(0.3,(450,450)),
+          T.RandomBrightness(0.7,1.3),
+          T.RandomSaturation(0.7,1.3),
+          T.RandomContrast(0.8,1.2),
+          crop_aug,
+          T.Resize((450,450),),
  #         T.RandomRotation(angle=[-10, 10], expand=False, center=None, sample_style='range'),
  #        T.RandomApply(T.RandomCrop('absolute',(400,400)),prob=0.75),
           T.RandomFlip(prob=0.5, horizontal=True, vertical=False),
           T.RandomFlip(prob=0.5, horizontal=False, vertical=True),
-          T.RandomBrightness(0.7,1.3),
-          T.RandomSaturation(0.7,1.3),
-          T.RandomContrast(0.9,1.1)
 ]
 
 
@@ -36,8 +38,12 @@ def gen_val_set(img_dir,save_dir,cycles,augmentations,include_annotations = True
     pairs = sort_by_prefix(img_dir)
     os.makedirs(save_dir,exist_ok=True)
     aug = T.AugmentationList(augmentations)
+#    i = 0 # FOR TESTING
     for cycle in range(cycles):
         for front,ls in pairs.items():
+#            i+=1
+#            if i>5:
+#                return
             jpg_name, npy_name = None,None
             for name in ls:
                 if ".jpg" in name:
@@ -51,17 +57,17 @@ def gen_val_set(img_dir,save_dir,cycles,augmentations,include_annotations = True
                 tr = aug(inp)
                 aug_img = tr.apply_image(img)
                 masks = np.load(path.join(img_dir,npy_name))
-                print(masks.shape)
+                masks = masks.astype(np.uint8)
                 mask_ls = []
                 for mask in masks:
                     new_mask = tr.apply_segmentation(mask)
                     mask_ls.append(new_mask)
                     #print(img.shape,aug_img.shape,mask.shape,new_mask.shape)
-                    ol = put_mask_overlays(img=img,masks = [mask])
+#                    ol = put_mask_overlays(img=img,masks = [mask])
 #                    new_ol = put_mask_overlays(aug_img,[new_mask])
-                #    checkout_imgs([ol,new_ol])
+#                    checkout_imgs([ol,new_ol])
                 new_masks = np.array(mask_ls)
-                new_ol = put_mask_overlays(aug_img, new_masks)
+#                new_ol = put_mask_overlays(aug_img, new_masks)
                 np.save(path.join(save_dir,npy_name[:-9] + f"aug_nr{cycle}x_masks.npy"),new_masks)
                 cv2.imwrite(os.path.join(save_dir,jpg_name[:-4] + f"_aug_nr{cycle}x.jpg"),aug_img)
             elif ".json" in name:
