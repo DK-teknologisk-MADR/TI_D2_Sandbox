@@ -210,8 +210,8 @@ generate_masks_and_json('train')
 # pixel_pad = 19
 # cr = Cropper(crop_dim,pixel_pad)
 #
-# coco_dicts = data_utils.get_data_dicts(data_dir, 'train', file_pairs=get_file_pairs_2021(data_dir, split))
-# data_utils.register_data('filet', ['train'], coco_dicts, {'thing_classes' : ['filet']})
+# coco_dicts = data_and_file_utils.get_data_dicts(data_dir, 'train', file_pairs=get_file_pairs_2021(data_dir, split))
+# data_and_file_utils.register_data('filet', ['train'], coco_dicts, {'thing_classes' : ['filet']})
 # cfg_fp = base_dir + "/cfg.yaml"
 # chk_dir = base_dir + "/best_model.pth"
 #

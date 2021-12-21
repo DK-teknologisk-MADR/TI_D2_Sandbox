@@ -35,12 +35,67 @@ class P2_Dataset(Dataset):
         return len(self.masks)
 
 
+class ModelTester_Abstract(ModelTester):
+    '''
+    This provides the raw interface of the "3-phase model". Its more of a convention, in opposition to a abstract class that you should subclass from, since the phases may have different / more return values etc.
+    Overall the idea is:
+    Phase 1 : Takes numpy img uint 8 BGR as input, gives a selection of masks as output in form tensor with shape (mask_nr,h,w), if there are any. Also returns is_empty bool
+    Phase 2 : Takes tensor (mask_nr,h,w) and returns best_mask index. This may be skipped.
+    Phase 3 : Takes mask of shape (h,w) and returns keypoints.
+    All phases is conjugated by a process method, which are all by default identityfunction
+    '''
+
+    def phase1_preprocess(self, img, **kwargs):
+        return img
+
+    def phase1(self, img, **kwargs):
+        raise NotImplementedError
+        # return a_ts, is_empty
+
+    def phase1_postprocess(self, a_ts, **kwargs):
+        return a_ts
+
+    def phase2_preprocess(self, a_ts, **kwargs):
+        return a_ts
+
+    def phase2(self, img, **kwargs):
+        raise NotImplementedError
+        # return a_ts, is_empty
+
+    def phase2_postprocess(self, img,mask,best_index, **kwargs):
+        return img,mask,best_index
+
+    def phase3_preprocess(self, masks, best_index, **kwargs):
+        '''Should return best mask'''
+        best_mask = masks[best_index]
+        return best_mask
+
+
+    def phase3(self, mask, **kwargs):
+        raise NotImplementedError
+
+    def phase3_postprocess(self, kpts, **kwargs):
+        return kpts
+
+    def get_key_points(self,img):
+        img = self.phase1_preprocess(img)
+        masks = self.phase1(img)
+        masks = self.phase1_postprocess(masks)
+        masks = self.phase2_preprocess(masks)
+        best_index = self.phase2(masks)
+        img,masks,best_index = self.phase2_postprocess(img,masks,best_index)
+        best_mask = self.phase3_preprocess(masks,best_index)
+        kpts = self.phase3(best_mask)
+        kpts = self.phase3_postprocess(kpts)
+        return kpts
 class ModelTester3(ModelTester):
     ''''
 
     '''
 
-    def __init__(self, cfg_fp, chk_fp,img_size, mask_net_chk_fp = None, p3_kpts_nr=21, p2_object_area_thresh = 0, device ='cuda:0', print_log = False, record_plots = False,skip_phase2 = False,kpts_to_plot=None,p2_prepper = None,supervised = False):
+    def __init__(self, cfg_fp = None, chk_fp = None,img_size = None, mask_net_chk_fp = None, p3_kpts_nr=21, p2_object_area_thresh = 0, device ='cuda:0', print_log = False, record_plots = False,skip_phase2 = False,kpts_to_plot=None,p2_prepper = None,supervised = False):
+        if cfg_fp is None or chk_fp is None or img_size is None:
+            raise ValueError(f"cfg_fp,chk_fp,img_size must be supplied and not NOne. Values recieved were: {cfg_fp} , {chk_fp}, {img_size}")
         super().__init__(cfg_fp=cfg_fp, chk_fp=chk_fp,device = device)
         self.n_biggest = 4
         self.skip_phase2 = skip_phase2
@@ -67,9 +122,9 @@ class ModelTester3(ModelTester):
 
         if mask_net_chk_fp is not None:
             net = IOU_Discriminator_01(two_layer_head=False, device=device)
-            test_img = np.zeros((3, self.h, self.w))
-            test_mask = np.zeros((self.h,self.w))
-            test_mask[250:254,250:254] = 1
+#            test_img = np.zeros((3, self.h, self.w))
+#            test_mask = np.zeros((self.h,self.w))
+#            test_mask[250:254,250:254] = 1
 #            net_shape = self.p2_preprocessor.preprocess(np.zeros((3,self.h,self.w)),test_mask)
 #            print("NET SHAPE IS",net_shape)
 #            net, _ = try_script_model(net, sample_shape=(
@@ -84,8 +139,9 @@ class ModelTester3(ModelTester):
 
     def phase1(self,img):
         '''
-        takes img of filets and return predicted tensor of obj_nr x h x w of instance masks
+        DONT USE THIS. Its deprecated, and overwritten in the subclass modeltester_aug
         '''
+        print("DEPRECATED. You seem to be using Modeltester3 instead of Modeltester_Aug.")
         if self.print_log: print('starting phase1')
         is_empty = False
         pred_output = self.predictor(img)
@@ -255,9 +311,10 @@ class ModelTester3(ModelTester):
             mask, M_rot = self.phase3_preprocess(pred_masks_np[ind_to_biggest_object])
             kpts = self.phase3(mask)
             M_rot_inv = cv2.invertAffineTransform(M_rot)
-            kpts = self.phase3_postprocess(kpts,M_rot_inv)
+            kpts = self.phase3_postprocess(kpts,M_inv =  M_rot_inv)
         else:
             kpts = np.full((2,self.kpts_nr),-1)
+
 
         if self.record_plots and not is_empty:
             output_circle_img = self.img_to_plot3.copy()
@@ -273,7 +330,6 @@ class ModelTester3(ModelTester):
                         radius = 5
                     output_circle_img = cv2.circle(output_circle_img, tuple(point.astype('int')), radius, color, 3)
             self.plt_img_dict['circles'] = output_circle_img
-
         return kpts
 
     def phase3_preprocess(self,mask_np):
@@ -294,9 +350,12 @@ class ModelTester3(ModelTester):
 
 class ModelTester_Aug(ModelTester3):
     def __init__(self, p1_aug_iou_th = 0.92,p1_aug_vote_th=5,aug_lower_params = (0.8,0.8),aug_upper_params = (1.2,1.2), **kwargs):
+   #     print("recieved",cfg_fp)
         super().__init__(**kwargs)
+
         self.p1_aug_iou_th = p1_aug_iou_th
         self.p1_aug_vote_th = p1_aug_vote_th
+        #No reason for these specific choices of augmentation. Find more at https://detectron2.readthedocs.io/en/latest/modules/data_transforms.html or implement your own.
         t1min = Tr.RandomContrast(intensity_min=aug_lower_params[0], intensity_max=aug_lower_params[1])
         t2min = Tr.RandomSaturation(intensity_min=aug_lower_params[0], intensity_max=aug_lower_params[1])
         t3min = Tr.RandomLighting((aug_lower_params[1] + aug_lower_params[0]) / 2)
@@ -310,6 +369,7 @@ class ModelTester_Aug(ModelTester3):
         self.translation_tuples = [(self.w * self.translations_pcts[0][translation_index],self.h * self.translations_pcts[1][translation_index]) for translation_index in range(self.aug_nr//2)]
         if self.print_log: print("instantiated augmentation translation tuples to",self.translation_tuples)
 
+
     def phase1(self,np_img,gt_masks=None):
         img_trs = []
         img = np_img  #img = self.predictor.aug.get_transform(np_img).apply_image(np_img)
@@ -317,20 +377,21 @@ class ModelTester_Aug(ModelTester3):
         inp = Tr.AugInput(img)
         img_ts = torch.tensor(img.astype("float32").transpose(2, 0, 1),device=self.device,requires_grad =False)
         img_trs.append({'image': img_ts})
+
+        #Augmenting happens here:
         for i in range(self.aug_nr):
             img_tr = self.augment_img_optics(img,inp,i)
             img_tr = torch.tensor(img_tr.astype("float32").transpose(2, 0, 1),device=self.device,requires_grad=False)
             img_tr = self.augment_img_geometric(img_tr,aug_id=i,inverse=False)
-#            if i == 0:
-#                img_tr_plot = cv2.cvtColor( 255 * img_tr.to('cpu').numpy().astype('uint8').transpose(1, 2,0),cv2.COLOR_BGR2RGB)
-#                cv2.imshow("window",img_tr_plot)
             img_trs.append({'image' : img_tr})
         aug_time = time.time()-aug_time_start
         if self.print_log: print(f"Phase1 : augmented {self.aug_nr } pictures. Batchsize is {len(img_trs)} pictures. aug time: {aug_time}")
-        #FOR TESTING
+        #all augs goes through model:
         assert len(img_trs) == self.aug_nr + 1
         with torch.no_grad():
             raw_output= self.predictor.model(img_trs)
+
+        #discarding objects with bad score from internal mask-rcnn.
         has_good_score = [raw_output[0]['instances'].scores>0.8]
         has_good_score.extend([raw_output[i]['instances'].scores>0.5 for i in range(1,self.aug_nr + 1)])
         masks = [raw_output[i]['instances'][has_good_score[i]].pred_masks for i in range(self.aug_nr + 1)]
@@ -339,9 +400,8 @@ class ModelTester_Aug(ModelTester3):
 
         masks_aug = [masks[i] for i in range(1, self.aug_nr + 1)]
         masks_aug = [self.augment_img_geometric(masks,aug_id=i,inverse=True) for i, masks in enumerate(masks_aug)]
-#        img_tr_plot = 255 * masks_aug[0][0].to('cpu').numpy().astype('uint8')
-#        cv2.imshow("window2", img_tr_plot)
-#        cv2.waitKey()
+
+        #discarding objects with small size
         sizes = masks_ref.sum(axis=(1, 2))
         if self.print_log: print("phase1: BEFORE SORTING, sizes are" + str(sizes))
         size_ratio = masks_ref.sum(axis=(1, 2)) / (masks_ref.shape[1] * masks_ref.shape[2])
@@ -359,12 +419,13 @@ class ModelTester_Aug(ModelTester3):
         if self.print_log: print("Phase1 : There are", len(masks_ref), " masks with large size")
         if self.print_log: print("phase1: BEFORE SORTING, sizes are" + str(sizes))
         if self.print_log: print("phase1: The three largest are " + str(biggest))
-
+        #There are now <=4 candidates.
+        #Voting, and reorder based on votes:
         vote_nrs = self.get_votes(masks_ref,masks_aug)
         have_enough_votes = vote_nrs >self.p1_aug_vote_th
         best_mask_indices = np.hstack([np.nonzero(have_enough_votes)[0], np.nonzero( np.logical_not(have_enough_votes))[0]])
         if self.print_log: print("best indices are", best_mask_indices)
-        #TEST
+        #show results if you want:
 #        masks_ref_cp = masks_ref.clone()
 #        best_mask_indices,vote_nrs,vote_ls = self.get_best_mask_indices(masks_ref,masks_aug)
 #        img_plt = masks_ref[0].cpu().numpy().astype('uint8')
@@ -384,6 +445,8 @@ class ModelTester_Aug(ModelTester3):
 
 
 
+
+        #everything below is just for plotting
 
         if self.record_plots and not is_empty:
             if gt_masks is None and self.supervised:
@@ -511,14 +574,20 @@ class ModelTester_Aug(ModelTester3):
 #        centroids = centroids[largest_components[0]]
         return mask, largest_area
 
-    def augment_img_optics(self,img,inp,aug_id):
+    def augment_img_optics(self,img : np.ndarray,inp : Tr.AugInput,aug_id : int):
+        '''
+        OBS note that augment_img_optics takes np array, while geometric takes torch tensor ( and can be manipulated in cuda)
+        '''
         if aug_id % (self.aug_nr//2) == 0:
             tr_map = self.augsmin(inp)
         else:
              tr_map =self.augsmax(inp)
         return tr_map.apply_image(img)
 
-    def augment_img_geometric(self,img,aug_id,inverse):
+    def augment_img_geometric(self,img : torch.Tensor,aug_id : int,inverse : bool):
+        '''
+        OBS note that augment_img_optics takes np array, while geometric takes torch tensor ( and can be manipulated in cuda)
+        '''
         # if aug_id // (self.aug_nr // 4) == 0:
         #     translate = (int(self.w*0.03),43)
         # elif aug_id // (self.aug_nr // 4) == 1:
@@ -575,13 +644,3 @@ class ModelTester_Aug(ModelTester3):
 
 
 
-#dir_with_everything ="/pers_files/test_model/mask_rcnn_R_50_FPN_3x_4_output/"
-#dir_with_everything = "path/to/dir/with/all/the/stuff"
-#predictor =Filet_ModelTester2(dir_with_everything + "cfg.yaml",dir_with_everything + "best_model.pth",n_split=21)
-#input_img = cv2.imread(dir_with_everything + 'filet.jpg')
-#start_time = time.time()
-#pred_outputs = predictor(input_img)
-#kpts = predictor.get_key_points(input_img)
-#print("inference timing :",time.time()-start_time)
-#os.listdir("/pers_files/test_model/mask_rcnn_R_50_FPN_3x_4_output")
-#print(kpts)

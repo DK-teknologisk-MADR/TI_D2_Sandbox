@@ -6,11 +6,10 @@ import os
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
 from detectron2_ML.sample_json import SAMPLE_JSON_DICT
-#from data_utils import get_ending_of_file
 from skimage import measure
 
 from cv2_utils.cv2_utils import *
-from data_utils.file_utils import get_ending_of_file,split_by_ending,sort_by_prefix
+from data_and_file_utils.file_utils import get_ending_of_file
 
 def output_model_annos(model_dir,data_dir,splits = None,out_dir = None,min_score = 0.5,endings = ["jpg",'jpeg']):
     if out_dir is None:
@@ -55,7 +54,7 @@ def output_model_annos(model_dir,data_dir,splits = None,out_dir = None,min_score
             cv2.imwrite(path.join(out_dir,split,file),img)
 
 
-def mask_to_json(data_dir: str, label: str, out_dir = None,point_skips = 5,img_endings = ['jpg','jpeg'],mask_endings=['png']) -> None:
+def mask_to_json(data_dir: str, label: str, out_dir = None,point_skips = 5,img_endings = ['jpg','jpeg'],mask_endings=['png'],empty_threshold: int = 25) -> None:
     '''
     Takes a directory (data_Dir) filled with masks converts them all to kristians favorite json_format point_skips determine precision. larger => less precision
     '''
@@ -71,7 +70,7 @@ def mask_to_json(data_dir: str, label: str, out_dir = None,point_skips = 5,img_e
                 end = len(img_ending)
                 front = name[:-(1+end)]
                 pair = (front,img_ending)
-        if front is None:
+        if front is not None:
             picture_front_and_end.append(pair)
         else:
             ValueError(f"there is no picture, but got a front{front}. This seems like bug in code")
@@ -114,19 +113,19 @@ def mask_to_json(data_dir: str, label: str, out_dir = None,point_skips = 5,img_e
             # ground_truth_area = mask.area(encoded_ground_truth)
             # ground_truth_bounding_box = mask.toBbox(encoded_ground_truth)
             contours = measure.find_contours(ground_truth_binary_mask, .5)
-            segmentations = []
-            biggest_contour = np.argmax([len(contour) for contour in contours])
-#            for contour in contours:
-            contour = contours[biggest_contour]
-            contour = np.flip(contour, axis=1)
-            segmentation = contour.ravel()
-            segmentation = segmentation.reshape(-1, 2)
-            segmentation = segmentation.astype(np.float)
-            point_ls = segmentation[:-1][::5].tolist()
-
-            new_shape = shapes_dict.copy()
-            new_shape['points'] = point_ls
-            data_dict['shapes'].append(new_shape)
+            if a_mask.sum() > empty_threshold:
+                segmentations = []
+                biggest_contour = np.argmax([len(contour) for contour in contours])
+    #            for contour in contours:
+                contour = contours[biggest_contour]
+                contour = np.flip(contour, axis=1)
+                segmentation = contour.ravel()
+                segmentation = segmentation.reshape(-1, 2)
+                segmentation = segmentation.astype(np.float)
+                point_ls = segmentation[:-1][::5].tolist()
+                new_shape = shapes_dict.copy()
+                new_shape['points'] = point_ls
+                data_dict['shapes'].append(new_shape)
         cv2.imwrite(path.join(out_dir, name), img)
         with open(path.join(out_dir, front + ".json"), 'w+') as fp:
             json.dump(data_dict, fp)
@@ -135,10 +134,10 @@ def mask_to_json(data_dir: str, label: str, out_dir = None,point_skips = 5,img_e
 
 
 
-#data_dir = path.join('/pers_files/Filet_Test/pre_annotations')
-#out_dir = path.join('/pers_files/Filet_Test/post_anno')
-#os.makedirs(out_dir)
-#mask_to_json(data_dir,label='filet',out_dir=out_dir)
+data_dir = path.join('/pers_files/Combined_final/Filet-10-21/annotated_masks_from_august_18_11')
+out_dir = path.join('/pers_files/Combined_final/Filet-10-21/annotations_august_18_11')
+os.makedirs(out_dir)
+mask_to_json(data_dir,label='filet',out_dir=out_dir)
 #data_dir = path.join('/pers_files/Combined_final/Filet-10-21/pre_annotated530x910')
 #out_dir = path.join('/pers_files/Combined_final/Filet-10-21/pre_annotated_masks')
 #model_dir = path.join('/pers_files/Combined_final/cropped/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_48_output')

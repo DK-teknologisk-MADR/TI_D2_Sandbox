@@ -6,7 +6,7 @@ from detectron2.evaluation import COCOEvaluator
 from detectron2_ML.hyperoptimization import D2_hyperopt_Base
 from numpy import random
 from detectron2_ML.transforms import RandomChoiceAugmentation
-from detectron2_ML.trainers import Hyper_Trainer
+from detectron2_ML.trainers import Trainer_With_Early_Stop
 from detectron2_ML.data_utils import get_data_dicts, register_data
 import detectron2.data.transforms as T
 from datetime import datetime
@@ -24,33 +24,6 @@ data_names = register_data('filet',['train','val'],orig_dicts,{'thing_classes' :
 #model_name = "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x"
 model_name = 'COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x'
 output_dir = f'{data_dir}_output_{datetime.now().day}-{datetime.now().month}'
-class D2_hyperopt(D2_hyperopt_Base):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        print('task is',self.task)
-
-    def suggest_helper(self,i):
-        if i==0:
-            return [[64, 128, 256, 512]]
-        elif i==1:
-            return [[128, 256, 512]]
-        else:
-            raise ValueError
-
-    def suggest_values(self):
-        hps = [
-            (['model', 'anchor_generator', 'sizes'],self.suggest_helper(random.randint(0,2))),
-            (['model', 'anchor_generator', 'aspect_ratios'], random.choice([[0.5, 1.0, 2.0], [0.25, 0.5, 1.0, 2.0],[0.25,0.5, 1.0]])),
-            (['solver', 'BASE_LR'], random.uniform(0.0005, 0.005)),
-            (['model', 'roi_heads', 'batch_size_per_image'], int(random.choice([128, 256, 512]))),
-            (['MODEL', 'RPN', 'NMS_THRESH'], random.uniform(0.55, 0.85)),
-            (['MODEL', 'RPN', 'POST_NMS_TOPK_TRAIN'], random.randint(500, 1000)),
-        ]
-        return hps
-
-    def prune_handling(self,pruned_ids):
-        for trial_id in pruned_ids:
-            shutil.rmtree(self.get_trial_output_dir(trial_id))
 
 rotationaug = RandomChoiceAugmentation([          T.RandomRotation(angle=[-5, 5], expand=False, center=None, sample_style='range'),
                                                   T.RandomRotation(angle=[-5, 5], expand=True, center=None, sample_style='range')])
@@ -87,7 +60,7 @@ def initialize_base_cfg(model_name,output_dir,cfg=None):
     os.makedirs(f'{output_dir}/{model_name}_output',exist_ok=True)
     cfg.SOLVER.MAX_ITER = 1000000
     cfg.SOLVER.STEPS = [] #cfg.SOLVER.STEPS = [2000,4000] would decay LR by cfg.SOLVER.GAMMA at steps 2000,4000
-    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512  #(default: 512)
+    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 512  #(default: 512)t
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
     cfg.MODEL.DEVICE='cuda:1'
     return cfg
@@ -97,8 +70,10 @@ cfg = initialize_base_cfg(model_name,output_dir)
 
 task = 'segm'
 evaluator = COCOEvaluator(data_names['val'],("segm",), False,cfg.OUTPUT_DIR)
-print(data_names['train'],)
-print((data_names['val'],))
+print(data_names[splits[0]],)
+print(data_names[splits[1]],)
 
-round1 = D2_hyperopt(model_name,cfg,data_val_name=data_names['val'],task=task,evaluator=evaluator,output_dir=output_dir,step_chunk_size=600,max_iter=1000000,pr_params={'factor' : 3,'topK' : 1},trainer_cls=Hyper_Trainer,trainer_params = {'augmentations' : augmentations})
-res1 = round1.start()
+
+trainer = Trainer_With_Early_Stop(augmentations = augmentations,patience = 20000,cfg=cfg)
+trainer.resume_or_load(resume=True)
+trainer.train()

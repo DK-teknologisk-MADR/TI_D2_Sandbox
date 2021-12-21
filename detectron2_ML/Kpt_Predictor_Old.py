@@ -328,48 +328,11 @@ class ModelTester3(ModelTester):
 
 
 class ModelTester_Aug(ModelTester3):
-    def __init__(self, cfg_fp, chk_fp,img_size, mask_net_chk_fp = None, p3_kpts_nr=21, p2_object_area_thresh = 0, device ='cuda:0', print_log = False, record_plots = False,skip_phase2 = False,
-                 kpts_to_plot=None,p2_prepper = None,supervised = False, p1_aug_iou_th = 0.92,p1_aug_vote_th=5,aug_lower_params = (0.8,0.8),aug_upper_params = (1.2,1.2), **kwargs):
+    def __init__(self, p1_aug_iou_th = 0.92,p1_aug_vote_th=5,aug_lower_params = (0.8,0.8),aug_upper_params = (1.2,1.2), **kwargs):
         super().__init__(**kwargs)
-        self.n_biggest = 4
-        self.skip_phase2 = skip_phase2
-        self.p2_object_area_thresh = p2_object_area_thresh
-        self.print_log = print_log
-        self.kpts_nr = p3_kpts_nr
-        self.h, self.w = img_size
-        print("initializer : img_size is ", img_size)
-        self.iou_thresh = 0.7
-        #        net = IOU_Discriminator(device = device)
-        self.totensor = torchvision.transforms.ToTensor()
-        self.object_area_thresh = p2_object_area_thresh
-        self.supervised = supervised
-        # self.p2_preprocessor = PreProcessor([[250,1024-250],[100,1024-100]],resize_dims=(393,618),pad=35,mean=[0,0,0],std=[1,1,1])
-        self.p2_preprocessor = p2_prepper
-        # self.p2_preprocessor = PreProcessor_Box_Crop([[250,1024-250],[100,1024-100]],resize_dims=(393,618),pad=35,mean=[0.2010, 0.1944, 0.2488, 0.0000],std=[0.3040, 0.2964, 0.3694, 1])
-        if self.print_log: print("Filet Init :: device is", device)
-        self.plt_img_dict = {}
-        self.record_plots = record_plots
-        if self.record_plots is True and kpts_to_plot is None:
-            self.kpts_to_plot = [self.kpts_nr // 2]
-        else:
-            self.kpts_to_plot = kpts_to_plot
-
-        if mask_net_chk_fp is not None:
-            net = IOU_Discriminator_01(two_layer_head=False, device=device)
-            test_img = np.zeros((3, self.h, self.w))
-            test_mask = np.zeros((self.h, self.w))
-            test_mask[250:254, 250:254] = 1
-            #            net_shape = self.p2_preprocessor.preprocess(np.zeros((3,self.h,self.w)),test_mask)
-            #            print("NET SHAPE IS",net_shape)
-            #            net, _ = try_script_model(net, sample_shape=(
-            #            self.n_biggest, 4, net_shape[1], net_shape[2]), device=device)
-            self.model_tester_mask = Model_Tester_Mask(net, mask_net_chk_fp, device=device)
-        self.device = device
-        self.pred_instances = None
-        self.p2_dataset = P2_Dataset(self.p2_preprocessor)
+#FROM MODELTESTER3 END
         self.p1_aug_iou_th = p1_aug_iou_th
         self.p1_aug_vote_th = p1_aug_vote_th
-#FROM MODELTESTER3 END
         t1min = Tr.RandomContrast(intensity_min=aug_lower_params[0], intensity_max=aug_lower_params[1])
         t2min = Tr.RandomSaturation(intensity_min=aug_lower_params[0], intensity_max=aug_lower_params[1])
         t3min = Tr.RandomLighting((aug_lower_params[1] + aug_lower_params[0]) / 2)

@@ -7,12 +7,15 @@ import torch.cuda
 from numpy.random import choice, randint,uniform
 from detectron2_ML.trainers import Trainer_With_Early_Stop
 from detectron2.config import get_cfg
+
 from detectron2 import model_zoo
 from detectron2.data import DatasetMapper, build_detection_train_loader
 import detectron2.data.transforms as T
 from detectron2.evaluation import COCOEvaluator
 from detectron2_ML.pruners import SHA
 from detectron2_ML.trainers import TrainerWithMapper,TrainerPeriodicEval
+from detectron2.data.detection_utils import transform_instance_annotations,annotations_to_instances
+
 from detectron2_ML.data_utils import get_data_dicts, register_data
 model_dir = "/pers_files/Combined_final/cropped/output/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_48_output/fine_tune_10_21"
 
@@ -20,7 +23,7 @@ splits = ['train','val']
 data_dir_orig = "/pers_files/Combined_final/Filet"
 COCO_dicts_orig = {split: get_data_dicts(data_dir_orig,split) for split in splits } #converting TI-annotation of pictures to COCO annotations.
 data_names_orig = register_data('filet_orig',['train','val'],COCO_dicts_orig,{'thing_classes' : ['filet']}) #register data by str name in D2 api
-data_dir_prod = "/pers_files/Combined_final/Filet-10-21/annotated_530x910"
+data_dir_prod = "/pers_files/Combined_final/Filet-10-21/annotated_total" #"/pers_files/Combined_final/Filet-10-21/annotated_530x910"
 #production_line data
 COCO_dicts_prod = {split: get_data_dicts(data_dir_prod,split) for split in splits } #converting TI-annotation of pictures to COCO annotations.
 data_names_prod = register_data('filet_prod',['train','val'],COCO_dicts_prod,{'thing_classes' : ['filet']}) #register data by str name in D2 api
@@ -56,6 +59,8 @@ augmentations = [
           T.RandomSaturation(0.85,1.15),
           T.RandomContrast(0.85,1.1),
 ]
+
+
 
 trainer = Trainer_With_Early_Stop(augmentations = augmentations,patience = 20000,cfg=cfg)
 trainer.resume_or_load(resume=True)

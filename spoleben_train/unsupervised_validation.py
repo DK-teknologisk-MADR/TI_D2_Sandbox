@@ -5,17 +5,8 @@ from cv2_utils.cv2_utils import *
 from detectron2.config import get_cfg
 import torch
 from detectron2_ML.evaluators import Consistency_Evaluator
-from detectron2.data import DatasetMapper, build_detection_train_loader
-import detectron2.data.transforms as T
-from detectron2.evaluation import COCOEvaluator
-from detectron2_ML.pruners import SHA
-from detectron2_ML.trainers import TrainerPeriodicEval
-from detectron2_ML.hyperoptimization import D2_hyperopt_Base
-from numpy import random
 from detectron2_ML.data_utils import get_data_dicts, register_data , get_file_pairs,sort_by_prefix
 from spoleben_train.data_utils import get_data_dicts_masks
-from detectron2_ML.transforms import RemoveSmallest , CropAndRmPartials,RandomCropAndRmPartials
-from detectron2_ML.evaluators import MeatPickEvaluator
 splits = ['']
 data_dir = '/pers_files/spoleben/spoleben_09_2021/spoleben_not_annotated' #"/pers_files/spoleben/FRPA_annotering/annotations_crop(180,330,820,1450)"
 file_pairs = { split : sort_by_prefix(os.path.join(data_dir,split)) for split in splits }

@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 from detectron2.data import DatasetCatalog, MetadataCatalog
 from detectron2.structures import BoxMode
-
+from cv2_utils.cv2_utils import *
 
 def split_by_ending(file_name):
     '''
@@ -145,6 +145,7 @@ def get_data_dicts_txt_box(data_dir,split,file_pairs = None):
 
 
 
+
 def get_data_dicts(data_dir,split,file_pairs = None):
     '''
     input:
@@ -200,6 +201,23 @@ def get_data_dicts(data_dir,split,file_pairs = None):
             dataset_dicts.append(record)
     return dataset_dicts
 
+def plot_data_dict(data : dict,segm_type='poly'):
+    img = cv2.imread(data['file_name'])
+    annotations = data['annotations']
+    if segm_type == 'poly':
+        segms = []
+        for annotation in annotations:
+            pts_flat_ls = annotation['segmentation'][0]
+            print(len(annotation['segmentation']))
+            segm = np.array(pts_flat_ls).reshape(len(pts_flat_ls)//2,2)
+            segms.append(segm)
+
+        img_ol = put_poly_overlays(img,segms)
+        checkout_imgs(img_ol)
+    elif segm_type == 'mask':
+        raise NotImplementedError
+    else:
+        raise ValueError("choose poly or mask as segm_type")
 
 def register_data(prefix_name,splits,COCO_dicts,metadata):
     '''

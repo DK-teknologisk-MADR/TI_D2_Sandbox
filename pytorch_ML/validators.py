@@ -1,6 +1,6 @@
 import torch
-
-
+from sklearn.metrics import f1_score as f1_score_sk
+import numpy as np
 
 
 
@@ -49,7 +49,10 @@ def prec_rec_scores(y_true:torch.Tensor, y_pred:torch.Tensor) -> torch.Tensor:
     torch.Tensor
         `ndim` == 2. 0 <= val <= 1
     '''
-    assert y_true.ndim == 1
+    assert y_true.ndim <3
+    if y_true.ndim == 2:
+        if y_true.shape[1] == 1:
+            y_true = y_true.flatten()
     assert y_pred.ndim == 1 or y_pred.ndim == 2
 
     if y_pred.ndim == 2:
@@ -71,12 +74,50 @@ def prec_rec_scores(y_true:torch.Tensor, y_pred:torch.Tensor) -> torch.Tensor:
     result.requires_grad = False
     return result
 
-def f1_score(y_true:torch.Tensor, y_pred:torch.Tensor) -> torch.Tensor:
+def f1_score(y_pred:torch.Tensor, y_true:torch.Tensor) -> torch.Tensor:
     prec_rec = prec_rec_scores(y_true,y_pred)
     epsilon = 1e-7
     f1 = 2* (prec_rec[0]*prec_rec[1]) / (prec_rec[0] + prec_rec[1] + epsilon)
     f1.requires_grad = False
     return f1
+
+
+class F1_Score_Osc():
+    def __init__(self,nr_of_classes : int ,th : float = 0.5):
+        self.th = th
+        self.nr_of_classes = nr_of_classes
+
+    def __call__(self,y_pred:torch.Tensor, y_true:torch.Tensor):
+        assert y_true.ndim < 3
+        if y_true.ndim == 2:
+            if y_true.shape[1] == 1:
+                y_true = y_true.flatten()
+            else:
+                raise ValueError(f"y true has bad shape {y_true.shape[1]}")
+        assert y_pred.ndim == 2
+
+        y_pred = y_pred.argmax(dim=1) * torch.any(y_pred > self.th,dim=1) + torch.all(y_pred <= self.th,dim=1) * self.nr_of_classes
+        y_pred_np = y_pred.to('cpu').numpy()
+        y_true_np = y_true.to('cpu').numpy()
+        print(np.array([y_true_np,y_pred_np,torch.all(y_pred <= self.th,dim=1)]))
+        print("F1 scores are pr class are:" )
+        print({i : f1 for i,f1 in enumerate(f1_score_sk(y_true=y_true_np,y_pred=y_pred_np,average=None))})
+        return f1_score_sk(y_true=y_true_np,y_pred=y_pred_np,average='weighted')
+#
+#        F1s = torch.zeros(self.nr_of_classes + 1,dtype=torch.float32)
+#        epsilon = 1e-7
+#        for val_to_check in range(self.nr_of_classes + 1):
+#            pred_is_val = (y_pred == val_to_check).long()
+#            true_is_val = (y_true == val_to_check).long()
+#            tp = (true_is_val * pred_is_val).sum().to(torch.float32)
+#            tn = ((1 - true_is_val) * (1 - pred_is_val)).sum().to(torch.float32)
+#            fp = ((1 - true_is_val) * pred_is_val).sum().to(torch.float32)
+#            fn = (true_is_val * (1 - pred_is_val)).sum().to(torch.float32)
+#            precision = tp / (tp + fp + epsilon)
+#            recall = tp / (tp + fn + epsilon)
+#            F1s[val_to_check] = 2 * (precision * recall) / (precision + recall + epsilon)
+
+
 
 def f1_score_neg(y_true:torch.Tensor, y_pred:torch.Tensor) -> torch.Tensor:
     y_true = torch.abs(1-y_true)

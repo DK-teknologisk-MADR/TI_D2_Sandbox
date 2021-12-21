@@ -5,17 +5,19 @@ from detectron2 import model_zoo
 from detectron2.evaluation import COCOEvaluator
 from detectron2_ML.hyperoptimization import D2_hyperopt_Base
 from numpy import random
+from copy import deepcopy
+from detectron2_ML.transforms import augment_data_with_transform_and_save_as_json
 from detectron2_ML.trainers import Trainer_With_Early_Stop,Hyper_Trainer
 from detectron2_ML.data_utils import get_data_dicts, register_data
-
+import detectron2.data.transforms as T
+from detectron2.data.detection_utils import transform_instance_annotations
 splits = ['train','val']
 data_dir = "/pers_files/Combined_final/cropped"
-COCO_dicts = {split: get_data_dicts(data_dir,split) for split in splits } #converting TI-annotation of pictures to COCO annotations.
+COCO_dicts = { split: get_data_dicts(data_dir,split) for split in splits } #converting TI-annotation of pictures to COCO annotations.
 data_names = register_data('filet',['train','val'],COCO_dicts,{'thing_classes' : ['filet']}) #register data by str name in D2 api
 #model_name = "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x"
 model_name = 'COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x'
-
-
+out_dir = '/pers_files/Filet_Test/test_folder'
 
 
 class D2_hyperopt(D2_hyperopt_Base):
@@ -62,6 +64,12 @@ def initialize_base_cfg(model_name,output_dir,cfg=None):
     cfg.SOLVER.IMS_PER_BATCH = 4 #maybe more?
     cfg.OUTPUT_DIR = f'{output_dir}/{model_name}_output'
     cfg.SOLVER.WARMUP_ITERS = 100
+    cfg.INPUT.MIN_SIZE_TEST = 450
+    cfg.INPUT.MAX_SIZE_TEST = 450
+    cfg.INPUT.MIN_SIZE_TRAIN = (450,450) #min size train SKAL være tuple ved prediction af en eller anden årsag.
+    cfg.INPUT.MAX_SIZE_TRAIN = 450
+    cfg.SOLVER.WARMUP_ITERS = 200
+    cfg.SOLVER.WARMUP_FACTOR = 1.0 / cfg.SOLVER.WARMUP_ITERS
     os.makedirs(f'{output_dir}/{model_name}_output',exist_ok=True)
     cfg.SOLVER.MAX_ITER = 1000000
     cfg.SOLVER.STEPS = [] #cfg.SOLVER.STEPS = [2000,4000] would decay LR by cfg.SOLVER.GAMMA at steps 2000,4000

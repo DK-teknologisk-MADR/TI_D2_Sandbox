@@ -45,15 +45,16 @@ class kpt_Eval():
             gs1 = fig.add_gridspec(3, 3, hspace=0.001, wspace=0.001)
             gs1.update(wspace=0.0001, hspace=0.001)  # set the spacing between axes.
             fig, axes = plt.subplots(3, 3)
-            for i, item in enumerate(self.tester.plt_img_dict.items()):
-                name, plot_img = item
-                print("kpt_eval : plotting",plot_img.shape)
-                plot_img = cv2.resize(plot_img, (2*self.img_size[1], 2*self.img_size[0]))
-                axarr = plt.subplot(gs1[i])
-                axarr.imshow(plot_img)
-                axarr.set_xticklabels([])
-                axarr.set_yticklabels([])
-                axarr.set_aspect('equal')
+            plot_id = -1
+            for name,plot_img in self.tester.plt_img_dict.items():
+                if not 'mask' in name:
+                    plot_id +=1
+                    plot_img = cv2.resize(plot_img, (2*self.img_size[1], 2*self.img_size[0]))
+                    axarr = plt.subplot(gs1[plot_id])
+                    axarr.imshow(plot_img)
+                    axarr.set_xticklabels([])
+                    axarr.set_yticklabels([])
+                    axarr.set_aspect('equal')
             plt.savefig(save_name, dpi=300)
             plt.close(fig)
         else:
@@ -66,12 +67,17 @@ class kpt_Eval():
         img = cv2.imread(img_fp)
         if self.supervised:
             if self.mask_encoding =='poly':
-                json_fp = next((x for x in file_ls if x.endswith(".json")))
-                with open(json_fp,"r") as fp:
-                    gt_dict = json.load(fp)
-                masks = np.zeros((len(gt_dict['shapes']),self.img_size[0],self.img_size[1]))
-                for i in range(len(gt_dict['shapes'])):
-                    masks[i] = polygon2mask(self.img_size, np.flip(np.array(gt_dict['shapes'][i]['points']), axis=1))
+                try:
+                    json_fp = next((x for x in file_ls if x.endswith(".json")))
+                except StopIteration:
+                    print(f"could not find json file for img{img_fp}, SKIPPING")
+                    return
+                else:
+                    with open(json_fp,"r") as fp:
+                        gt_dict = json.load(fp)
+                    masks = np.zeros((len(gt_dict['shapes']),self.img_size[0],self.img_size[1]))
+                    for i in range(len(gt_dict['shapes'])):
+                        masks[i] = polygon2mask(self.img_size, np.flip(np.array(gt_dict['shapes'][i]['points']), axis=1))
             else:
                 assert self.mask_encoding == 'bit_mask'
                 np_file = next((x for x in file_ls if x.endswith(".npy")))

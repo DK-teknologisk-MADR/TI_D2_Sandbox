@@ -7,6 +7,9 @@ from time import time
 import torch.nn as nn
 import torch
 from efficientnet_pytorch import EfficientNet
+
+
+
 class FChead(nn.Module):
     def __init__(self,dims,dropout_ps = None ,activ_ls = None,device='cuda:0'):
         super().__init__()
@@ -83,6 +86,177 @@ class Classifier_Effnet(nn.Module):
             x = self.sigmoid(x)
         return x
 
+class Classifier_Multi_Effnet(nn.Module):
+    '''
+    Classifier for efficientnet
+    '''
+    def __init__(self,device,pretrained = False,**kwargs):
+        super(Classifier_Multi_Effnet, self).__init__()
+        if pretrained:
+            self.backbone = EfficientNet.from_pretrained(**kwargs).to('cuda')
+        else:
+            self.backbone = EfficientNet.from_name(**kwargs).to('cuda')
+        self.backbone.to(device)
+        self.softmax = nn.Softmax(dim=1)
+#        if th is None:
+#            self.th = min(0.5, 3 / nr_of_classes) #magic numbers without any evidence.
+#        else:
+#            self.th = th
+    def forward(self,x):
+        x = self.backbone(x)
+        if not self.training:
+            x = self.softmax(x)
+        return x
+
+
+class conv_block(nn.Module):
+    def __init__(self, in_c, out_c):
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_c, out_c, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm2d(out_c)
+
+        self.conv2 = nn.Conv2d(out_c, out_c, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(out_c)
+        self.relu = nn.ReLU()
+
+    def forward(self, inputs):
+        x = self.conv1(inputs)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.conv2(x)
+        x = self.bn2(x)
+        x = self.relu(x)
+        return x
+
+
+class Downsampler(nn.Module):
+    def __init__(self,in_channels, out_channels,kernel_size,stride=1,padding=0):
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride = stride, padding=padding)
+        self.relu = nn.ReLU()
+        self.bn1 = nn.BatchNorm2d(out_channels)
+
+
+    def forward(self, inputs):
+        x = self.conv1(inputs)
+        x = self.bn1(x)
+        x = self.relu(x)
+        return x
+
+
+class Upsampler(nn.Module):
+    def __init__(self,in_channels, out_channels,kernel_size,stride=1,padding=0,output_padding=0):
+        super().__init__()
+        self.conv1 = nn.ConvTranspose2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride = stride, padding=padding,output_padding=output_padding)
+        self.relu = nn.ReLU()
+        self.bn1 = nn.BatchNorm2d(out_channels)
+
+
+    def forward(self, inputs):
+        x = self.conv1(inputs)
+        x = self.bn1(x)
+        x = self.relu(x)
+        return x
+
+
+
+class Decoder(nn.Module):
+    def __init__(self,out_channels,compressed_channels,device='cuda:0'):
+        super().__init__()
+        self.out_channels = out_channels
+        self.compressed_channels = compressed_channels
+        self.output_act_fn = nn.Sigmoid()
+        self.upsample1 = Upsampler(self.compressed_channels, 256,kernel_size=3, output_padding=1, padding=1, stride=2) # 1 to 2
+        self.upsample2_skip = Upsampler(self.compressed_channels, 128,kernel_size=3, output_padding=1, padding=0, stride=4) # 1 to 4
+        self.upsample3_skip = Upsampler(self.compressed_channels, 64,kernel_size=3, output_padding=5, padding=0, stride=8) # 1 to 8
+        self.block1 = conv_block(in_c=256, out_c=128)
+        self.upsample2 = Upsampler(128,128,kernel_size=3, output_padding=1, padding=1, stride=2) #2 to 4
+        self.block2 = conv_block(in_c=256, out_c=128)
+        self.upsample3 = Upsampler(128,128,kernel_size=3, output_padding=1, padding=1, stride=2) # 4 to 8
+        self.block3 = conv_block(in_c=192, out_c=64)
+        self.upsample4 = Upsampler(64,64,kernel_size=3, output_padding=1, padding=1, stride=2) # 8 to 16
+        self.block4 = conv_block(in_c=64, out_c=32)
+        self.conv_out = nn.Conv2d(32,3,kernel_size=1,padding=0,stride=1)
+        self.to(device)
+
+    def forward(self,inputs):
+        x = self.upsample1(inputs)
+        x = self.block1(x)
+        x = self.upsample2(x)
+        skip1 = self.upsample2_skip(inputs)
+        x = torch.cat([skip1,x],dim=1)
+        x = self.block2(x)
+        x = self.upsample3(x)
+        skip2 = self.upsample3_skip(inputs)
+        x = torch.cat([skip2, x], dim=1)
+        x = self.block3(x)
+        x = self.upsample4(x)
+        x = self.block4(x)
+        x = self.conv_out(x)
+        return x
+
+
+
+
+class Encoder(nn.Module):
+    def __init__(self,in_channels,compressed_channels,device='cuda:0'):
+        super().__init__()
+        self.in_channels = in_channels
+        self.compressed_channels = compressed_channels
+        self.input_size = 240
+        self.relu = nn.ReLU()
+        self.bottleneck_dim = 16
+        self.block1 = conv_block(in_c=3,out_c=32)
+        self.conv_downsampler1=nn.Conv2d(in_channels=32,out_channels=32,kernel_size=3, stride = 2, padding = 1) # 16 to 8
+        self.block2 = conv_block(in_c=32,out_c=64)
+        self.conv_downsampler2_skip=Downsampler(in_channels=64,out_channels=256,kernel_size=3, stride = 8, padding = 1) # 8 to 1
+        self.conv_downsampler2=nn.Conv2d(in_channels=64,out_channels=64,kernel_size=3, stride = 2, padding = 1) # 8 to 4
+        self.block3 = conv_block(in_c=64,out_c=128)
+        self.conv_downsampler3_skip = Downsampler(in_channels=128,out_channels=256,kernel_size=3, stride = 4, padding = 1)  # 4 to 1 
+        self.conv_downsampler3=nn.Conv2d(in_channels=128,out_channels=128,kernel_size=3, stride = 2, padding = 1) # 4 to 2
+        self.block4 = conv_block(in_c=128,out_c=256)
+        self.conv_downsampler4=nn.Conv2d(in_channels=256,out_channels=256,kernel_size=3, stride = 2, padding = 1) # 2 to 1
+        self.depth_conv =nn.Conv2d(in_channels=768,out_channels=compressed_channels,kernel_size=1,stride=1,padding=0)
+        self.end_batch = nn.BatchNorm2d(compressed_channels)
+        self.to(device)
+
+    def forward(self,x):
+        x = self.block1(x)
+        x = self.conv_downsampler1(x)
+        x = self.relu(x)
+        x = self.block2(x)
+        skip2 = self.conv_downsampler2_skip(x)
+        x = self.conv_downsampler2(x)
+        x = self.relu(x)
+        x = self.block3(x)
+        skip3 = self.conv_downsampler3_skip(x)
+        x = self.conv_downsampler3(x)
+        x = self.relu(x)
+        x = self.block4(x)
+        x = self.conv_downsampler4(x)
+        x = self.relu(x)
+        x = torch.cat([x,skip2,skip3],dim=1)
+        x = self.depth_conv(x)
+        x = self.relu(x)
+        x = self.end_batch(x)
+        return x
+
+
+class ConvAutoencoder(nn.Module):
+    def __init__(self,in_channels,compressed_channels,device='cuda:0'):
+        '''
+        INPUT MUST BE (x,x, 240,240)
+        '''
+        super(ConvAutoencoder, self).__init__()
+        self.encoder = Encoder(in_channels=in_channels,compressed_channels=compressed_channels,device=device)
+        self.decoder = Decoder(out_channels=in_channels,compressed_channels=compressed_channels,device=device)
+        self.to(device)
+
+
+    def forward(self, x):
+        x = self.encoder(x)
+        x = self.decoder(x)
+        return x
 
 class IOU_Discriminator(nn.Module):
     def __init__(self,device = 'cuda:0'):

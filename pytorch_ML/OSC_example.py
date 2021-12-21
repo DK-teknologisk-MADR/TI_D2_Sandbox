@@ -26,7 +26,7 @@ from pytorch_ML.trainer import strict_batch_collater
 from pytorch_ML.osc_loss import OSC_Loss
 
 nr_of_classes = 10
-target_tr = lambda x : x if x<nr_of_classes else nr_of_classes
+target_tr = lambda x : x if x < nr_of_classes else nr_of_classes
 
 class my_transform():
     def __init__(self):
@@ -68,9 +68,8 @@ for i in range(len(dataset)):
     else:
         train_indices.append(i)
 data_train,data_val,data_test = Subset(dataset,train_indices),Subset(dataset,val_indices),Subset(dataset,test_indices)
-#targets = np.array([y for img,y in data_train])
-#indices, counts = np.unique(targets,return_counts=True)
-#checkout_imgs( tensor_pic_to_imshow_np(data_train[550][0]),'rgb')
+
+
 probs = np.full(nr_of_classes + 1 ,3/4*(1/nr_of_classes))
 probs[-1] = 1/4
 weights = get_balanced_class_weights_from_dataset(dataset=data_train,probs = probs)
@@ -92,12 +91,6 @@ val_fun = F1_Score_Osc(10,th=0.3)
 output_dir = "/pers_files/OSC_TEST"
 trainer = Trainer(dt=data_train,net=bb, optimizer = optimizer, scheduler = scheduler,loss_fun = loss_fun, max_iter= 1000, output_dir =output_dir,eval_period=50, print_period=50,bs=10,dt_val = data_val,dt_wts = weights,fun_val =val_fun , val_nr = None,add_max_iter_to_loaded = False,gpu_id = 1,unsqueeze_ys=True)
 trainer.train()
-
-batch_ls = [data_test[0],data_test[1]]
-dl = DataLoader(dataset=data_train,batch_size=1,sampler=WeightedRandomSampler(weights=weights,num_samples=len(data_train)),collate_fn=strict_batch_collater)
-dl = iter(dl)
-batch = next(dl)
-loss_fun(outs=bb(batch[0].to('cuda:1')),targets=batch[1].to('cuda:1'))
 
 
 #xs,ys = batch

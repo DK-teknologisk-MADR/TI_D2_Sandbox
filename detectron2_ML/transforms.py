@@ -3,9 +3,13 @@ import numpy as np
 import detectron2.data.transforms as T
 from shapely.geometry import Polygon
 from cv2_utils.cv2_utils import *
-
+from copy import deepcopy
+import os.path as path
+from data_and_file_utils.file_utils import load_img_and_json
+import json
 import logging
 import numpy as np
+from detectron2.data.detection_utils import transform_instance_annotations
 import pycocotools.mask as mask_util
 import torch
 from PIL import Image
@@ -165,3 +169,38 @@ class CropAndResize(T.Augmentation):
         return T.TransformList([scaler,resizer])
 
 
+def augment_data_with_transform_and_save_as_json(data_dict_ls,transforms,image_size,output_dir,suffix = ""):
+    '''
+    WARNING: Can only be used on data with only 1 label e.g. "filet" or "spoleben" but not multilabel-data. TODO
+    '''
+
+    data_to_change = deepcopy(data_dict_ls)
+    for data in data_to_change:
+        base_name = path.basename(data['file_name'])
+        front = data['file_name'].split(".")[-2]
+        base_front = base_name.split(".")[-2]
+        annotations = data['annotations']
+        img,json_dict = load_img_and_json(data['file_name'])
+        new_dict = deepcopy(json_dict)
+        #TODO:: implement for multilabel data
+
+        tr = T.TransformList(transforms)
+
+        img_tr = tr.apply_image(img)
+        segms = []
+        for annotation in annotations:
+            transform_instance_annotations(annotation=annotation, transforms=transforms,image_size=image_size)
+            if annotation['segmentation']:
+                cluster_lengths = [len(segm) for segm in annotation['segmentation']]
+                largest_cluster_index = np.argmax(cluster_lengths)
+                segm = annotation['segmentation'][largest_cluster_index]
+                segm = np.array(segm).reshape(len(segm)//2,2).tolist()
+                segms.append(segm)
+        new_dict['file_name'] = path.join(output_dir,base_front) + suffix + ".jpg"
+        new_dict['shapes'] = [{'label':'filet' , 'points': segm }  for segm in segms if len(segm) > 0 ]
+        cv2.imwrite(path.join(output_dir,base_front) + suffix + ".jpg",img_tr)
+        json_write_name = path.join(output_dir,base_front) + suffix + ".json"
+        print(json_write_name)
+        with open(json_write_name,'w+') as fp:
+            json.dump(new_dict,fp)
+    return data_to_change

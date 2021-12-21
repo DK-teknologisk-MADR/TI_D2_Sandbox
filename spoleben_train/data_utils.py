@@ -28,7 +28,7 @@ def bbox2_xyxy_abs(img):
     return cmin,rmin, cmax,rmax
 
 def sort_by_prefix(fp):
-    print("WARNING DEPRECATIOON: This should not be in spoleben, so i copypasted it to data_utils. Don't use this version, and dont modify it.")
+    print("WARNING DEPRECATIOON: This should not be in spoleben, so i copypasted it to data_and_file_utils. Don't use this version, and dont modify it.")
     #file_ls = ["hallo.jpg","hallo.json","hallo_also.jpg","hallibu_dallibu.jpg"]
     file_ls = os.listdir(fp)
     result = {}
@@ -73,7 +73,7 @@ def split_by_ending(file_name):
     '''
     like split but adds "" if no ending
     '''
-    print("WARNING DEPRECATIOON: This should not be in spoleben, so i copypasted it to data_utils. Don't use this version, and dont modify it.")
+    print("WARNING DEPRECATIOON: This should not be in spoleben, so i copypasted it to data_and_file_utils. Don't use this version, and dont modify it.")
     x = file_name.split(".")
     if len(x)>1:
         return x[-2:]

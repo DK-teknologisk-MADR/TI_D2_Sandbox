@@ -3,6 +3,7 @@ from detectron2_ML.Kpt_Predictor import ModelTester_Aug
 from cv2_utils import cv2_utils
 import os
 import cv2
+import datetime
 from cv2_utils.cv2_utils import *
 #CHANGE THE FOLLOWING TO YOUR PATH
 p1_model_dir ="/pers_files/spoleben/spoleben_09_2021/output_27-10/trials/COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x_130_output"
@@ -27,7 +28,16 @@ print(f"output has class {pts.__class__}, and is of shape {pts.shape}, and with 
 
 test_img_expected_path = os.path.join(p1_model_dir,'test_pic_out.jpg')
 img_out_exp = cv2.imread(test_img_expected_path)
+folder_path = os.path.join(os.getcwd(),"beautiful_pictures_to_mads_of_filet")
+os.makedirs(folder_path,exist_ok=True)
+time = str(datetime.datetime.now()).replace(" ","_").replace(":","_",).replace(".","_")
+for name,img in tester.plt_img_dict.items():
+    if img.ndim == 3:
+        img = img[:,:,::-1] #RGB TO BGR
+    cv2.imwrite(os.path.join(folder_path,"pic_mads" + time + "_" + name + ".jpg"),img)
+
 img_with_pts = cv2_utils.put_circle_overlays(img_in,pts)
+
 img_dict = {img_name : img for img_name,img in zip(['in','out','expected_out'],[img_in,img_with_pts,img_out_exp])}
 plot_dict = tester.plt_img_dict
 checkout_imgs(plot_dict,'rgb')

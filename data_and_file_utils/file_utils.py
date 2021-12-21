@@ -1,6 +1,7 @@
 import os
 import os.path
-
+import cv2
+import json
 def get_ending_of_file(file):
     split_by_pt = file.split(".")
     if len(split_by_pt) == 1:
@@ -9,6 +10,13 @@ def get_ending_of_file(file):
         ending = split_by_pt[-1]
     return ending
 
+
+def load_img_and_json(jpg_name):
+    front = jpg_name.split(".")[-2]
+    img = cv2.imread(jpg_name)
+    with open(front + ".json") as fp:
+        json_dict = json.load(fp)
+    return img, json_dict
 
 
 def sort_by_prefix(fp):

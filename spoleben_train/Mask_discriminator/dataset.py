@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 import pandas
-from data_utils.file_utils import get_file_with_ending
+from data_and_file_utils.file_utils import get_file_with_ending
 from cv2_utils.cv2_utils import *
 import glob, os
 import pandas as pd

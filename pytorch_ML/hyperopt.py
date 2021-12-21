@@ -58,7 +58,6 @@ class Hyperopt():
             "optimizer" : { "lr": None, "momentum": uniform(0.1, 0.6)},
             "scheduler" : {'gamma' : None},
             "loss" : {},
-            "net" : {'two_layer_head' : random.random()>0.5},
         }
         lr_half_time = uniform(200, 4000)
         generated_values['scheduler']["gamma"] = np.exp(-np.log(2)/lr_half_time)

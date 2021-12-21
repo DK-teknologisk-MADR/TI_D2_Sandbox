@@ -9,8 +9,17 @@ import cv2_utils.cv2_utils
 from pytorch_ML.validators import worst_f1
 
 
+def strict_batch_collater(batch_ls):
+    '''
+    This collater makes sure that y's are also delivered with unsqueezed shape B x 1 in a batch
+    '''
+    xs = torch.stack([sample[0] for sample in batch_ls])
+    ys = torch.stack([torch.tensor(sample[1]) for sample in batch_ls]).unsqueeze(1)
+    return xs, ys
+
+
 class Trainer():
-    def __init__(self,dt,net, optimizer = None, scheduler = None,loss_fun = None, max_iter= 200, output_dir ="./trainer_output",eval_period=250, print_period=50,bs=4,dt_val = None,dt_wts = None,fun_val = None , val_nr = None,add_max_iter_to_loaded = False,gpu_id = 0):
+    def __init__(self,dt,net, optimizer = None, scheduler = None,loss_fun = None, max_iter= 200, output_dir ="./trainer_output",eval_period=250, print_period=50,bs=4,dt_val = None,dt_wts = None,fun_val = None , val_nr = None,add_max_iter_to_loaded = False,gpu_id = 0,unsqueeze_ys = False):
         validation_stuff = [dt_val,eval_period,fun_val]
         #validation_variables = {'dt_val' : dt_val, 'eval_period' : eval_period, 'fun_val' : fun_val}
         val_nones = [x is None for x in validation_stuff]
@@ -35,15 +44,17 @@ class Trainer():
         print("recieved dt_wts",dt_wts)
         self.best_val_score =-float('inf')
         self.val_score_cur=-float('inf')
-
+        self.unsqueeze_ys = unsqueeze_ys
         self.net.to('cuda:'+str(self.gpu_id))
 
- 
     def get_loader(self,dt,bs,wts = None,replacement=True):
         if wts is None:
                 wts = np.ones(len(dt))
         sampler = WeightedRandomSampler(weights=wts, num_samples=len(dt), replacement=replacement)
-        return DataLoader(dt, batch_size=bs, sampler=sampler, pin_memory=True,num_workers=0)
+        if self.unsqueeze_ys:
+            return DataLoader(dt, batch_size=bs, sampler=sampler, pin_memory=True,num_workers=0,collate_fn=strict_batch_collater)
+        else:
+            return DataLoader(dt, batch_size=bs, sampler=sampler, pin_memory=True,num_workers=0)
 
     def save_model(self,to_save,file_name = "checkpoint.pth"):
         state = {
@@ -175,17 +186,19 @@ class Trainer():
                 batch = batch.to(self.gpu_id)
                 target_batch = targets.to(self.gpu_id).to(aggregate_device)
                 out_batch= self.net(batch).to(aggregate_device)
-                assert target_batch.shape == out_batch.shape # delete this when module is tested
                 targets_ls.append(target_batch)
                 out_ls.append(out_batch)
                 if instances_nr + 1 >= val_nr:
                     break
             targets = torch.cat(targets_ls,0)
             outs = torch.cat(out_ls,0) #dim i,j,: gives out if j= 0 and target if j = 1
+            print(f"printing targets and outs with shapes{targets.shape} and {outs.shape}")
             print(targets,outs)
             score = fun(outs,targets)
-            score = score.to('cpu')
-
+            if isinstance(score,torch.Tensor):
+                score = score.to('cpu')
+            else:
+                score=torch.tensor(score)
         print("validate: ran validation, and got score", score)
         self.net.train()
         return score

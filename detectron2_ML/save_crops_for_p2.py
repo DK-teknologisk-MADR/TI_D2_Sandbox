@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from data_utils.file_utils import get_ending_of_file
+from data_and_file_utils.file_utils import get_ending_of_file
 import os.path as path
 from detectron2_ML.Kpt_Predictor import ModelTester_Aug
 from detectron2.utils.visualizer import Visualizer

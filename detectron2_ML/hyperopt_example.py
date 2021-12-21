@@ -14,6 +14,7 @@ splits = ['train','val']
 data_dir = "/pers_files/Combined_final/cropped"
 orig_dicts = { split: get_data_dicts(data_dir,split) for split in splits } #converting TI-annotation of pictures to COCO annotations.
 data_dir_prod = "/pers_files/Combined_final/Filet-10-21/annotated_total_aug" #"/pers_files/Combined_final/Filet-10-21/annotated_530x910"
+output_dir = f'{data_dir}_output_{datetime.now().day}-{datetime.now().month}'
 #production_line data
 COCO_dicts_prod = {split: get_data_dicts(data_dir_prod,split) for split in splits } #converting TI-annotation of pictures to COCO annotations.
 for split in splits:
@@ -23,23 +24,19 @@ data_names = register_data('filet',['train','val'],orig_dicts,{'thing_classes' :
 
 #model_name = "COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x"
 model_name = 'COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x'
-output_dir = f'{data_dir}_output_{datetime.now().day}-{datetime.now().month}'
+
 class D2_hyperopt(D2_hyperopt_Base):
+    '''
+    setup base configuration of model SEE MORE AT https://detectron2.readthedocs.io/en/latest/modules/config.html
+    '''
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         print('task is',self.task)
 
-    def suggest_helper(self,i):
-        if i==0:
-            return [[64, 128, 256, 512]]
-        elif i==1:
-            return [[128, 256, 512]]
-        else:
-            raise ValueError
 
     def suggest_values(self):
         hps = [
-            (['model', 'anchor_generator', 'sizes'],self.suggest_helper(random.randint(0,2))),
             (['model', 'anchor_generator', 'aspect_ratios'], random.choice([[0.5, 1.0, 2.0], [0.25, 0.5, 1.0, 2.0],[0.25,0.5, 1.0]])),
             (['solver', 'BASE_LR'], random.uniform(0.0005, 0.005)),
             (['model', 'roi_heads', 'batch_size_per_image'], int(random.choice([128, 256, 512]))),
@@ -100,5 +97,5 @@ evaluator = COCOEvaluator(data_names['val'],("segm",), False,cfg.OUTPUT_DIR)
 print(data_names['train'],)
 print((data_names['val'],))
 
-round1 = D2_hyperopt(model_name,cfg,data_val_name=data_names['val'],task=task,evaluator=evaluator,output_dir=output_dir,step_chunk_size=600,max_iter=1000000,pr_params={'factor' : 3,'topK' : 1},trainer_cls=Hyper_Trainer,trainer_params = {'augmentations' : augmentations})
+round1 = D2_hyperopt(model_name,cfg,data_val_name=data_names['val'],task=task,evaluator=evaluator,output_dir=output_dir,step_chunk_size=50,max_iter=200,pr_params={'factor' : 3,'topK' : 1},trainer_cls=Hyper_Trainer,trainer_params = {'augmentations' : augmentations})
 res1 = round1.start()

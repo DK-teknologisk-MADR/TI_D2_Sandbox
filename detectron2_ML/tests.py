@@ -1,7 +1,7 @@
 import unittest
 from pruners import SHA
 import numpy as np
-from data_utils import get_file_pairs, get_data_dicts, register_data
+from data_and_file_utils import get_file_pairs, get_data_dicts, register_data
 from trainers import TI_Trainer
 from detectron2 import model_zoo
 
